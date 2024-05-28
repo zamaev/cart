@@ -27,5 +27,6 @@ func main() {
 		Wrap: mux,
 	}
 
+	log.Println("starting server app")
 	log.Fatal(http.ListenAndServe(":8082", h))
 }

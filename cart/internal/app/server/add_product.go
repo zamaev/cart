@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"route256/cart/internal/pkg/model"
 	"strconv"
+
+	"github.com/go-playground/validator/v10"
 )
 
 type AddProductRequest struct {
-	Count uint16 `json:"count"`
+	Count uint16 `json:"count" validate:"gt=0"`
 }
 
 func (s *Server) AddProduct(w http.ResponseWriter, r *http.Request) error {
@@ -38,6 +40,12 @@ func (s *Server) AddProduct(w http.ResponseWriter, r *http.Request) error {
 	err = json.Unmarshal(data, &addProductRequest)
 	if err != nil {
 		return fmt.Errorf("json.Unmarshal: %w", err)
+	}
+
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	err = validate.Struct(addProductRequest)
+	if err != nil {
+		return fmt.Errorf("validation addProductRequest: %w", err)
 	}
 
 	err = s.cartService.AddProduct(
