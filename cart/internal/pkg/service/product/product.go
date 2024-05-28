@@ -1,4 +1,4 @@
-package service
+package product
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"route256/cart/internal/pkg/customerror"
 	"route256/cart/internal/pkg/model"
 )
 
@@ -53,7 +54,10 @@ func (ps *ProductService) GetProduct(ProductSku model.ProductSku) (*model.Produc
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("sku %v not found", ProductSku)
+		return nil, customerror.NewErrStatusCode(
+			fmt.Sprintf("sku %v not found", ProductSku),
+			http.StatusPreconditionFailed,
+		)
 	}
 
 	data, err := io.ReadAll(res.Body)

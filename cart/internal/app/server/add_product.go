@@ -14,6 +14,8 @@ type AddProductRequest struct {
 }
 
 func (s *Server) AddProduct(w http.ResponseWriter, r *http.Request) error {
+	w.Header().Add("Content-Type", "application/json")
+
 	userIdRaw := r.PathValue("user_id")
 	userId, err := strconv.ParseInt(userIdRaw, 10, 64)
 	if err != nil {

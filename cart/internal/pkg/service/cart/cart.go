@@ -1,4 +1,4 @@
-package service
+package cart
 
 import (
 	"errors"
@@ -76,6 +76,9 @@ func (r *CartService) GetCart(userId model.UserId) (model.CartFull, error) {
 	for productSku, count := range cart {
 		product, err := r.productService.GetProduct(productSku)
 		if err != nil {
+			// if errors.Is(err, customerror.ErrStatusCode{}) {
+			// 	return nil, err
+			// }
 			return nil, fmt.Errorf("r.productService.GetProduct: %w", err)
 		}
 		cartFull[*product] = count
