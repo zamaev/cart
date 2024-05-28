@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"route256/cart/internal/pkg/customerror"
+	"route256/cart/internal/pkg/helpers"
 	"route256/cart/internal/pkg/model"
 )
 
@@ -47,7 +48,7 @@ func (ps *ProductService) GetProduct(ProductSku model.ProductSku) (*model.Produc
 		return nil, fmt.Errorf("json.Marshal: %w", err)
 	}
 
-	res, err := http.Post(url, "application/json", bytes.NewReader(body))
+	res, err := helpers.NewRetryClient().Post(url, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("http.Post: %w", err)
 	}
