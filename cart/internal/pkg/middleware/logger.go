@@ -3,6 +3,7 @@ package middleware
 import (
 	"log"
 	"net/http"
+	"time"
 )
 
 type LoggerWrapperHandler struct {
@@ -10,6 +11,8 @@ type LoggerWrapperHandler struct {
 }
 
 func (h LoggerWrapperHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Printf("%s %s\n", r.Method, r.URL.Path)
+	start := time.Now()
+	log.Printf("%s %s start\n", r.Method, r.URL.Path)
 	h.Wrap.ServeHTTP(w, r)
+	log.Printf("%s %s ended. Duration: %s\n", r.Method, r.URL.Path, time.Since(start))
 }

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"route256/cart/internal/pkg/model"
 )
 
@@ -16,7 +17,7 @@ func NewCartMemoryRepository() *CartMemoryRepository {
 	}
 }
 
-func (r *CartMemoryRepository) AddProduct(userId model.UserId, ProductSku model.ProductSku, count uint16) error {
+func (r *CartMemoryRepository) AddProduct(_ context.Context, userId model.UserId, ProductSku model.ProductSku, count uint16) error {
 	if _, ok := r.storage[userId]; !ok {
 		r.storage[userId] = make(model.Cart)
 	}
@@ -24,7 +25,7 @@ func (r *CartMemoryRepository) AddProduct(userId model.UserId, ProductSku model.
 	return nil
 }
 
-func (r *CartMemoryRepository) RemoveProduct(userId model.UserId, ProductSku model.ProductSku) error {
+func (r *CartMemoryRepository) RemoveProduct(_ context.Context, userId model.UserId, ProductSku model.ProductSku) error {
 	if _, ok := r.storage[userId]; !ok {
 		return nil
 	}
@@ -32,12 +33,12 @@ func (r *CartMemoryRepository) RemoveProduct(userId model.UserId, ProductSku mod
 	return nil
 }
 
-func (r *CartMemoryRepository) ClearCart(userId model.UserId) error {
+func (r *CartMemoryRepository) ClearCart(_ context.Context, userId model.UserId) error {
 	delete(r.storage, userId)
 	return nil
 }
 
-func (r *CartMemoryRepository) GetCart(userId model.UserId) (model.Cart, error) {
+func (r *CartMemoryRepository) GetCart(_ context.Context, userId model.UserId) (model.Cart, error) {
 	if _, ok := r.storage[userId]; !ok {
 		r.storage[userId] = make(model.Cart)
 	}

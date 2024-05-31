@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"route256/cart/internal/pkg/model"
+	"route256/cart/internal/pkg/utils"
 	"sort"
-	"strconv"
 )
 
 type GetCartResponseProduct struct {
@@ -24,13 +24,12 @@ type GetCartResponse struct {
 func (s *Server) GetCart(w http.ResponseWriter, r *http.Request) error {
 	w.Header().Add("Content-Type", "application/json")
 
-	userIdRaw := r.PathValue("user_id")
-	userId, err := strconv.ParseInt(userIdRaw, 10, 64)
+	userId, err := utils.GetIntPahtValue(r, "user_id")
 	if err != nil {
-		return fmt.Errorf("strconv.ParseInt: %w", err)
+		return fmt.Errorf("utils.GetIntPahtValue: %w", err)
 	}
 
-	cartFull, err := s.cartService.GetCart(model.UserId(userId))
+	cartFull, err := s.cartService.GetCart(r.Context(), model.UserId(userId))
 	if err != nil {
 		return fmt.Errorf("s.cartService.ClearCart: %w", err)
 	}
@@ -41,20 +40,25 @@ func (s *Server) GetCart(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}
 
-	var getCartResponse GetCartResponse
+	items := make([]GetCartResponseProduct, 0, len(cartFull))
+	totalPrice := uint32(0)
 	for product, count := range cartFull {
-		getCartResponse.Items = append(getCartResponse.Items, GetCartResponseProduct{
+		items = append(items, GetCartResponseProduct{
 			SkuId: int64(product.Sku),
 			Name:  product.Name,
 			Count: count,
 			Price: product.Price,
 		})
-		getCartResponse.TotalPrice += product.Price * uint32(count)
+		totalPrice += product.Price * uint32(count)
 	}
-
-	sort.Slice(getCartResponse.Items, func(i, j int) bool {
-		return getCartResponse.Items[i].SkuId < getCartResponse.Items[j].SkuId
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].SkuId < items[j].SkuId
 	})
+
+	getCartResponse := GetCartResponse{
+		Items:      items,
+		TotalPrice: uint32(totalPrice),
+	}
 
 	data, err := json.Marshal(getCartResponse)
 	if err != nil {

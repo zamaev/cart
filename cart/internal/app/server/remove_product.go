@@ -4,25 +4,24 @@ import (
 	"fmt"
 	"net/http"
 	"route256/cart/internal/pkg/model"
-	"strconv"
+	"route256/cart/internal/pkg/utils"
 )
 
 func (s *Server) RemoveProduct(w http.ResponseWriter, r *http.Request) error {
 	w.Header().Add("Content-Type", "application/json")
 
-	userIdRaw := r.PathValue("user_id")
-	userId, err := strconv.ParseInt(userIdRaw, 10, 64)
+	userId, err := utils.GetIntPahtValue(r, "user_id")
 	if err != nil {
-		return fmt.Errorf("strconv.ParseInt userIdRaw: %w", err)
+		return fmt.Errorf("utils.GetIntPahtValue: %w", err)
 	}
 
-	skuIdRaw := r.PathValue("sku_id")
-	skuId, err := strconv.ParseInt(skuIdRaw, 10, 64)
+	skuId, err := utils.GetIntPahtValue(r, "sku_id")
 	if err != nil {
-		return fmt.Errorf("strconv.ParseInt skuIdRaw: %w", err)
+		return fmt.Errorf("utils.GetIntPahtValue: %w", err)
 	}
 
 	err = s.cartService.RemoveProduct(
+		r.Context(),
 		model.UserId(userId),
 		model.ProductSku(skuId),
 	)
@@ -31,6 +30,6 @@ func (s *Server) RemoveProduct(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-	w.Write([]byte("{}"))
+	utils.SuccessReponse(w)
 	return nil
 }

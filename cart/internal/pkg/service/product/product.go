@@ -6,24 +6,21 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"route256/cart/internal/pkg/config"
 	"route256/cart/internal/pkg/customerror"
-	"route256/cart/internal/pkg/helpers"
+	"route256/cart/internal/pkg/middleware"
 	"route256/cart/internal/pkg/model"
 )
 
 const URL = "http://route256.pavl.uk:8080"
-const DEV_TOKEN = "testtoken"
 
 type ProductService struct {
 	token string
 }
 
-func NewProductService(token string) *ProductService {
-	if token == "" {
-		token = DEV_TOKEN
-	}
+func NewProductService(config config.Config) *ProductService {
 	return &ProductService{
-		token: token,
+		token: config.ProductServiceToken,
 	}
 }
 
@@ -48,7 +45,7 @@ func (ps *ProductService) GetProduct(ProductSku model.ProductSku) (*model.Produc
 		return nil, fmt.Errorf("json.Marshal: %w", err)
 	}
 
-	res, err := helpers.NewRetryClient().Post(url, "application/json", bytes.NewReader(body))
+	res, err := middleware.NewRetryClient().Post(url, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("http.Post: %w", err)
 	}
