@@ -60,3 +60,11 @@ func TestGetCart(t *testing.T) {
 		2: 7,
 	})
 }
+
+func BenchmarkAddProduct(b *testing.B) {
+	ctx := context.Background()
+	repo := NewCartMemoryRepository()
+	for i := 0; i < b.N; i++ {
+		repo.AddProduct(ctx, 1, 1, 1)
+	}
+}
