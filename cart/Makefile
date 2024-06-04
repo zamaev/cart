@@ -7,3 +7,9 @@ run:
 test-cover:
 	go test -cover ./internal/pkg/service/cart
 	go test -cover ./internal/pkg/repository
+
+cyclo:
+	gocyclo -ignore "_test|mock/" .
+
+cognit:
+	gocognit -ignore "_test|mock/" .
