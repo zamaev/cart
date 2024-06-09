@@ -13,7 +13,6 @@ func main() {
 	app := server.NewApp()
 
 	go func() {
-
 		if err := app.ListenAndServe(); err != nil {
 			log.Fatal(err)
 		}
