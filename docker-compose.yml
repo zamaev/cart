@@ -9,3 +9,27 @@ services:
       dockerfile: ./Dockerfile
     ports:
       - "8082:8082" # HTTP
+    networks:
+      - cart_network
+    environment:
+      CART_SERVICE_URL: ':8082'
+      LOMS_SERVICE_URL: 'loms:50777'
+
+  loms:
+    container_name: loms
+    image: loms
+    build:
+      context: ./loms
+      dockerfile: ./Dockerfile
+    ports:
+      - "50777:50777" # gRPC
+      - "8097:8097" # HTTP
+    networks:
+      - cart_network
+    environment:
+      GRPC_URL: ':50777'
+      HTTP_URL: ':8097'
+
+networks:
+  cart_network:
+

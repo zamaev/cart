@@ -44,3 +44,10 @@ func (r *CartMemoryRepository) GetCart(_ context.Context, userId model.UserId) (
 	}
 	return r.storage[userId], nil
 }
+
+func (r *CartMemoryRepository) GetProductCount(_ context.Context, userId model.UserId, ProductSku model.ProductSku) (uint16, error) {
+	if _, ok := r.storage[userId]; !ok {
+		return 0, nil
+	}
+	return r.storage[userId][ProductSku], nil
+}
