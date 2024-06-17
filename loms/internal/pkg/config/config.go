@@ -10,11 +10,11 @@ type Config struct {
 func NewConfig() Config {
 	grpcUrl := os.Getenv("GRPC_URL")
 	if grpcUrl == "" {
-		grpcUrl = ":50777"
+		grpcUrl = "localhost:50777"
 	}
 	httpUrl := os.Getenv("HTTP_URL")
 	if httpUrl == "" {
-		httpUrl = ":8097"
+		httpUrl = "localhost:8097"
 	}
 	return Config{
 		GrpcUrl: grpcUrl,

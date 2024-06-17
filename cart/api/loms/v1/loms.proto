@@ -6,8 +6,28 @@ option go_package = "route256/loms/api/loms/v1;loms";
 
 import "validate/validate.proto";
 import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+    info: {
+      title: "Loms";
+      version: "1.0.0";
+    };
+    schemes: HTTP;
+    schemes: HTTPS;
+    consumes: "application/json";
+    produces: "application/json";
+  };
 
 service Loms {
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+        description: "Loms service example"
+        external_docs: {
+          url: "https://github.com/grpc-ecosystem/grpc-gateway/blob/main/examples/internal/proto/examplepb/a_bit_of_everything.proto";
+          description: "Find out more about grpc-gateway";
+        }
+      };
+
     rpc OrderCreate(OrderCreateRequest) returns (OrderCreateResponse) {
         option (google.api.http) = {
             post: "/v1/order_create"

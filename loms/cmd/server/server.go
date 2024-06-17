@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"route256/loms/api/openapiv2"
 	"route256/loms/internal/app/server"
 	"route256/loms/internal/pkg/config"
 	"route256/loms/internal/pkg/middleware"
@@ -17,6 +18,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
+
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 func main() {
@@ -39,7 +42,7 @@ func main() {
 	loms.RegisterLomsServer(gprcServer, lomsServer)
 
 	go func() {
-		log.Println("starting server app")
+		log.Printf("starting server app on url %s\n", config.GrpcUrl)
 		if err := gprcServer.Serve(lis); err != nil {
 			log.Fatal(err)
 		}
@@ -55,13 +58,23 @@ func main() {
 	if err = loms.RegisterLomsHandler(context.Background(), gwmux, grpcClient); err != nil {
 		log.Fatalln("failed to register gateway:", err)
 	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Write(openapiv2.Doc)
+	})
+	mux.HandleFunc("/swaggerui/", httpSwagger.Handler(
+		httpSwagger.URL("/swagger.json"),
+	))
+	mux.Handle("/", gwmux)
+
 	gwServer := &http.Server{
 		Addr:    config.HttpUrl,
-		Handler: gwmux,
+		Handler: mux,
 	}
 
 	go func() {
-		log.Printf("starting grpc-gateway")
+		log.Printf("starting grpc-gateway on url %s", config.HttpUrl)
 		log.Fatalln(gwServer.ListenAndServe())
 	}()
 
