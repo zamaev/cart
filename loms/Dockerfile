@@ -3,7 +3,7 @@ FROM golang:1.22-alpine as builder
 WORKDIR /build
 
 ENV PROTOC_ZIP=protoc-25.1-linux-x86_64.zip
-RUN apk add unzip curl
+RUN apk add unzip curl git
 RUN curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v25.1/$PROTOC_ZIP \
     && unzip -o $PROTOC_ZIP -d /usr/local \
     && export PATH="$PATH:$HOME/local/bin" \
