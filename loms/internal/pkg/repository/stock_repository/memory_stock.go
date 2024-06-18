@@ -72,10 +72,10 @@ func (r *stockMemoryRepository) ReserveCancel(_ context.Context, sku model.Produ
 	return nil
 }
 
-func (r *stockMemoryRepository) GetBySku(_ context.Context, sku model.ProductSku) (uint64, error) {
+func (r *stockMemoryRepository) GetStocksBySku(_ context.Context, sku model.ProductSku) (uint64, error) {
 	product, ok := r.storage[sku]
 	if !ok {
-		return 0, fmt.Errorf("invalid sku: %d", sku)
+		return 0, nil
 	}
 	return product.TotalCount - product.Reserved, nil
 }

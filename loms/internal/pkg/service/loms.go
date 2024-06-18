@@ -10,7 +10,7 @@ type stockRepository interface {
 	Reserve(context.Context, model.ProductSku, uint16) error
 	ReserveRemove(context.Context, model.ProductSku, uint16) error
 	ReserveCancel(context.Context, model.ProductSku, uint16) error
-	GetBySku(context.Context, model.ProductSku) (uint64, error)
+	GetStocksBySku(context.Context, model.ProductSku) (uint64, error)
 }
 
 type orderRepository interface {
@@ -91,5 +91,5 @@ func (s *LomsService) OrderCancel(ctx context.Context, orderID model.OrderID) er
 }
 
 func (s *LomsService) StocksInfo(ctx context.Context, sku model.ProductSku) (uint64, error) {
-	return s.stockRepository.GetBySku(ctx, sku)
+	return s.stockRepository.GetStocksBySku(ctx, sku)
 }
