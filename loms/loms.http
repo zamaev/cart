@@ -1,0 +1,36 @@
+POST http://localhost:8097/v1/order_create
+Content-Type: application/json
+
+{
+  "user": "1",
+  "items": [
+    {
+      "sku": 1,
+      "count": 1
+    }
+  ]
+}
+###
+
+GET http://localhost:8097/v1/order_info/1
+Content-Type: application/json
+###
+
+POST http://localhost:8097/v1/order_pay
+Content-Type: application/json
+
+{
+  "order_id": 1
+}
+###
+
+POST http://localhost:8097/v1/order_cancel
+Content-Type: application/json
+
+{
+  "order_id": 2
+}
+###
+
+GET http://localhost:8097/v1/stocks_info/1
+Content-Type: application/json

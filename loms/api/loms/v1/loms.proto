@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package route256.loms.pkg.loms.v1;
+
+option go_package = "route256/loms/api/loms/v1;loms";
+
+import "validate/validate.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+    info: {
+      title: "Loms";
+      version: "1.0.0";
+    };
+    schemes: HTTP;
+    schemes: HTTPS;
+    consumes: "application/json";
+    produces: "application/json";
+  };
+
+service Loms {
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+        description: "Loms service example"
+        external_docs: {
+          url: "https://github.com/grpc-ecosystem/grpc-gateway/blob/main/examples/internal/proto/examplepb/a_bit_of_everything.proto";
+          description: "Find out more about grpc-gateway";
+        }
+      };
+
+    rpc OrderCreate(OrderCreateRequest) returns (OrderCreateResponse) {
+        option (google.api.http) = {
+            post: "/v1/order_create"
+            body: "*"
+        };
+    };
+    rpc OrderInfo(OrderInfoRequest) returns (OrderInfoResponse) {
+        option (google.api.http) = {
+            get: "/v1/order_info/{order_id}"
+        };
+    };
+    rpc OrderPay(OrderPayRequest) returns (OrderPayResponse) {
+        option (google.api.http) = {
+            post: "/v1/order_pay"
+            body: "*"
+        };
+    };
+    rpc OrderCancel(OrderCancelRequest) returns (OrderCancelResponse) {
+        option (google.api.http) = {
+            post: "/v1/order_cancel"
+            body: "*"
+        };
+    };
+    rpc StocksInfo(StocksInfoRequest) returns (StocksInfoResponse) {
+        option (google.api.http) = {
+            get: "/v1/stocks_info/{sku}"
+        };
+    };
+}
+
+message OrderItem {
+    uint32 sku = 1 [(validate.rules).uint32.gt = 0];
+    uint32 count = 2 [(validate.rules).uint32.gt = 0];
+}
+
+message OrderCreateRequest {
+    int64 user = 1 [(validate.rules).int64.gt = 0];
+    repeated OrderItem items = 2 [(validate.rules).repeated.min_items = 1];
+}
+
+message OrderCreateResponse {
+    int64 order_id = 1;
+}
+
+message OrderInfoRequest {
+    int64 order_id = 1 [(validate.rules).int64.gt = 0];
+}
+
+message OrderInfoResponse {
+    string status = 1;
+    int64 user = 2;
+    repeated OrderItem items = 3;
+}
+
+message OrderPayRequest {
+    int64 order_id = 1 [(validate.rules).int64.gt = 0];
+}
+
+message OrderPayResponse {}
+
+message OrderCancelRequest {
+    int64 order_id = 1 [(validate.rules).int64.gt = 0];
+}
+
+message OrderCancelResponse {}
+
+message StocksInfoRequest {
+    uint32 sku = 1 [(validate.rules).uint32.gt = 0];
+}
+
+message StocksInfoResponse {
+    uint64 count = 1;
+}

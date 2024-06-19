@@ -61,6 +61,18 @@ func TestGetCart(t *testing.T) {
 	})
 }
 
+func TestGetProductCount(t *testing.T) {
+	ctx := context.Background()
+	repo := NewCartMemoryRepository()
+
+	repo.AddProduct(ctx, 1, 1, 5)
+	repo.AddProduct(ctx, 1, 1, 3)
+
+	count, err := repo.GetProductCount(ctx, 1, 1)
+	assert.NoError(t, err)
+	assert.Equal(t, count, uint16(8))
+}
+
 func BenchmarkAddProduct(b *testing.B) {
 	ctx := context.Background()
 	repo := NewCartMemoryRepository()

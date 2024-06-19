@@ -19,6 +19,8 @@ func TestServer(t *testing.T) {
 	defer serverApp.Close()
 
 	AddProduct(serverApp, t)
+	Checkout(serverApp, t)
+	AddProduct(serverApp, t)
 	GetCart(serverApp, t)
 	RemoveProduct(serverApp, t)
 }
@@ -29,6 +31,18 @@ func AddProduct(serverApp *httptest.Server, t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := http.Post(serverApp.URL+"/user/31337/cart/1076963", contentType, bytes.NewBuffer(data))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func Checkout(serverApp *httptest.Server, t *testing.T) {
+	checkoutRequest := server.CheckoutRequest{UserId: 31337}
+	data, err := json.Marshal(checkoutRequest)
+	require.NoError(t, err)
+
+	resp, err := http.Post(serverApp.URL+"/cart/checkout", contentType, bytes.NewBuffer(data))
 	require.NoError(t, err)
 	defer resp.Body.Close()
 

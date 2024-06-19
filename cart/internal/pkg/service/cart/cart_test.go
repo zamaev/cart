@@ -16,15 +16,18 @@ func TestAddProduct(t *testing.T) {
 	ctrl := minimock.NewController(t)
 	cartRepositoryMock := mock.NewCartRepositoryMock(ctrl)
 	productServiceMock := mock.NewProductServiceMock(ctrl)
-	cartService := NewCartService(cartRepositoryMock, productServiceMock)
+	lomsServiceMock := mock.NewLomsServiceMock(ctrl)
+	cartService := NewCartService(cartRepositoryMock, productServiceMock, lomsServiceMock)
 
 	type mocks struct {
 		cartRepositoryMock *mock.CartRepositoryMock
 		productServiceMock *mock.ProductServiceMock
+		lomsServiceMock    *mock.LomsServiceMock
 	}
 	testMocks := mocks{
 		cartRepositoryMock,
 		productServiceMock,
+		lomsServiceMock,
 	}
 
 	testData := []struct {
@@ -42,14 +45,35 @@ func TestAddProduct(t *testing.T) {
 			count:      1,
 			prepare: func(mocks *mocks) {
 				mocks.cartRepositoryMock.AddProductMock.Expect(ctx, 1, 1, 1).Return(nil)
+				mocks.cartRepositoryMock.GetProductCountMock.Expect(ctx, 1, 1).Return(0, nil)
 				mocks.productServiceMock.GetProductMock.Expect(1).Return(&model.Product{
-					Sku:   1111,
+					Sku:   1,
 					Name:  "Book",
 					Price: 100,
 				}, nil)
+				mocks.lomsServiceMock.StocksInfoMock.Expect(ctx, 1).Return(1, nil)
 			},
 			test: func(err error) {
 				assert.NoError(t, err)
+			},
+		},
+		{
+			name:       "invalid stocks",
+			userId:     1,
+			productSku: 1,
+			count:      1,
+			prepare: func(mocks *mocks) {
+				mocks.cartRepositoryMock.AddProductMock.Expect(ctx, 1, 1, 1).Return(nil)
+				mocks.cartRepositoryMock.GetProductCountMock.Expect(ctx, 1, 1).Return(0, nil)
+				mocks.productServiceMock.GetProductMock.Expect(1).Return(&model.Product{
+					Sku:   1,
+					Name:  "Book",
+					Price: 100,
+				}, nil)
+				mocks.lomsServiceMock.StocksInfoMock.Expect(ctx, 1).Return(0, nil)
+			},
+			test: func(err error) {
+				assert.Error(t, err)
 			},
 		},
 		{
@@ -109,7 +133,8 @@ func TestRemoveProduct(t *testing.T) {
 	ctrl := minimock.NewController(t)
 	cartRepositoryMock := mock.NewCartRepositoryMock(ctrl)
 	productServiceMock := mock.NewProductServiceMock(ctrl)
-	cartService := NewCartService(cartRepositoryMock, productServiceMock)
+	lomsServiceMock := mock.NewLomsServiceMock(ctrl)
+	cartService := NewCartService(cartRepositoryMock, productServiceMock, lomsServiceMock)
 
 	testData := []struct {
 		name       string
@@ -157,7 +182,8 @@ func TestClearCart(t *testing.T) {
 	ctrl := minimock.NewController(t)
 	cartRepositoryMock := mock.NewCartRepositoryMock(ctrl)
 	productServiceMock := mock.NewProductServiceMock(ctrl)
-	cartService := NewCartService(cartRepositoryMock, productServiceMock)
+	lomsServiceMock := mock.NewLomsServiceMock(ctrl)
+	cartService := NewCartService(cartRepositoryMock, productServiceMock, lomsServiceMock)
 
 	testData := []struct {
 		name   string
@@ -194,7 +220,8 @@ func TestGetCart(t *testing.T) {
 	ctrl := minimock.NewController(t)
 	cartRepositoryMock := mock.NewCartRepositoryMock(ctrl)
 	productServiceMock := mock.NewProductServiceMock(ctrl)
-	cartService := NewCartService(cartRepositoryMock, productServiceMock)
+	lomsServiceMock := mock.NewLomsServiceMock(ctrl)
+	cartService := NewCartService(cartRepositoryMock, productServiceMock, lomsServiceMock)
 
 	type mocks struct {
 		cartRepositoryMock *mock.CartRepositoryMock
