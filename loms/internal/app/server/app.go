@@ -22,7 +22,7 @@ type App struct {
 }
 
 func NewApp(config config.Config) *App {
-	lomsServer := NewServer()
+	lomsServer := NewServer(config)
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			middleware.Panic,

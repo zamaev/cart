@@ -8,6 +8,7 @@ import (
 	"route256/loms/internal/pkg/config"
 	"route256/loms/pkg/api/loms/v1"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -33,10 +34,17 @@ func TestServer(t *testing.T) {
 	lomsClient := loms.NewLomsClient(grpcClient)
 
 	OrderCreate(lomsClient, t)
+	time.Sleep(time.Millisecond)
 	OrderInfo(lomsClient, t)
+	time.Sleep(time.Millisecond)
 	OrderPay(lomsClient, t)
+	time.Sleep(time.Millisecond)
 	OrderCreate2(lomsClient, t)
+	time.Sleep(time.Millisecond)
 	OrderCancel(lomsClient, t)
+	time.Sleep(time.Millisecond)
+	OrderInfo2(lomsClient, t)
+	time.Sleep(time.Millisecond)
 	StocksInfo(lomsClient, t)
 
 	app.GrpcServer.Stop()
@@ -100,12 +108,15 @@ func OrderCancel(lomsClient loms.LomsClient, t *testing.T) {
 		OrderId: 2,
 	})
 	require.NoError(t, err)
+}
 
+func OrderInfo2(lomsClient loms.LomsClient, t *testing.T) {
 	res, err := lomsClient.OrderInfo(context.Background(), &loms.OrderInfoRequest{
 		OrderId: 2,
 	})
 	require.NoError(t, err)
 	require.Equal(t, "cancelled", res.Status)
+
 }
 
 func StocksInfo(lomsClient loms.LomsClient, t *testing.T) {

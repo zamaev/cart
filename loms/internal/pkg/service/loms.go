@@ -14,7 +14,7 @@ type stockRepository interface {
 }
 
 type orderRepository interface {
-	Create(context.Context, model.Order) model.OrderID
+	Create(context.Context, model.Order) (model.OrderID, error)
 	GetById(context.Context, model.OrderID) (model.Order, error)
 	SetStatus(context.Context, model.OrderID, model.OrderStatus) error
 }
@@ -32,7 +32,10 @@ func NewLomsService(stockRepository stockRepository, orderRepository orderReposi
 }
 
 func (s *LomsService) OrderCreate(ctx context.Context, order model.Order) (model.OrderID, error) {
-	orderID := s.orderRepository.Create(ctx, order)
+	orderID, err := s.orderRepository.Create(ctx, order)
+	if err != nil {
+		return 0, fmt.Errorf("orderRepository.Create: %w", err)
+	}
 	reservedItems := make([]model.OrderItem, 0, len(order.Items))
 	for _, item := range order.Items {
 		if err := s.stockRepository.Reserve(ctx, item.Sku, item.Count); err != nil {

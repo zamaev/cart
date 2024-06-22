@@ -18,13 +18,13 @@ func NewOrderMemoryRepository() *orderMemoryRepository {
 	}
 }
 
-func (r *orderMemoryRepository) Create(_ context.Context, order model.Order) model.OrderID {
+func (r *orderMemoryRepository) Create(_ context.Context, order model.Order) (model.OrderID, error) {
 	if order.Status == model.OrderStatusNone {
 		order.Status = model.OrderStatusNew
 	}
 	orderID := model.OrderID(len(r.storage) + 1)
 	r.storage[orderID] = order
-	return orderID
+	return orderID, nil
 }
 
 func (r *orderMemoryRepository) GetById(_ context.Context, orderID model.OrderID) (model.Order, error) {

@@ -45,7 +45,7 @@ func TestOrderCreate(t *testing.T) {
 				},
 			},
 			prepare: func(mocks *mocks) {
-				mocks.orderRepositoryMock.CreateMock.Return(1)
+				mocks.orderRepositoryMock.CreateMock.Return(1, nil)
 				mocks.stockRepositoryMock.ReserveMock.Expect(ctx, 1, 1).Return(nil)
 				mocks.orderRepositoryMock.SetStatusMock.Expect(ctx, 1, model.OrderStatusAwaitingPayment).Return(nil)
 			},
@@ -66,7 +66,7 @@ func TestOrderCreate(t *testing.T) {
 				},
 			},
 			prepare: func(mocks *mocks) {
-				mocks.orderRepositoryMock.CreateMock.Return(1)
+				mocks.orderRepositoryMock.CreateMock.Return(1, nil)
 				mocks.stockRepositoryMock.ReserveMock.Expect(ctx, 1, 1).Return(errors.New("reserve error"))
 				mocks.orderRepositoryMock.SetStatusMock.Expect(ctx, 1, model.OrderStatusFailed).Return(nil)
 			},
@@ -86,7 +86,7 @@ func TestOrderCreate(t *testing.T) {
 				},
 			},
 			prepare: func(mocks *mocks) {
-				mocks.orderRepositoryMock.CreateMock.Return(1)
+				mocks.orderRepositoryMock.CreateMock.Return(1, nil)
 				mocks.stockRepositoryMock.ReserveMock.Expect(ctx, 1, 1).Return(nil)
 				mocks.orderRepositoryMock.SetStatusMock.Expect(ctx, 1, model.OrderStatusAwaitingPayment).Return(errors.New("set status error"))
 			},
@@ -110,7 +110,7 @@ func TestOrderCreate(t *testing.T) {
 				},
 			},
 			prepare: func(mocks *mocks) {
-				mocks.orderRepositoryMock.CreateMock.Return(1)
+				mocks.orderRepositoryMock.CreateMock.Return(1, nil)
 				mocks.stockRepositoryMock.ReserveMock.When(ctx, 1, 1).Then(nil)
 				mocks.stockRepositoryMock.ReserveMock.When(ctx, 2, 1).Then(errors.New("reserve error"))
 				mocks.orderRepositoryMock.SetStatusMock.Expect(ctx, 1, model.OrderStatusFailed).Return(nil)

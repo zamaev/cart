@@ -1,5 +1,18 @@
 version: "3.8"
 
+x-postgres-common:
+  &postgres-common
+  image: postgres:14-alpine
+  user: postgres
+  restart: always
+  networks:
+    - cart_network
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready", "-U", "user", "--dbname=postgres"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
 services:
   cart:
     container_name: cart
@@ -29,7 +42,56 @@ services:
     environment:
       GRPC_URL: ':50777'
       HTTP_URL: ':8097'
+      DATABASE_MASTER_URL: 'postgres://user:password@db_master:5432/postgres'
+      DATABASE_REPLICA_URL: 'postgres://user:password@db_replica:5433/postgres'
+    depends_on:
+      db_master:
+        condition: service_healthy
+      db_replica:
+        condition: service_healthy
+
+  db_master:
+    <<: *postgres-common
+    container_name: db_master
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256\nhost replication all 0.0.0.0/0 md5"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    command: |
+      postgres 
+      -c wal_level=replica 
+      -c hot_standby=on 
+      -c max_wal_senders=10 
+      -c max_replication_slots=10 
+      -c hot_standby_feedback=on
+    volumes:
+      - ./replication_init.sql:/docker-entrypoint-initdb.d/replication_init.sql
+
+  db_replica:
+    <<: *postgres-common
+    container_name: db_replica
+    ports:
+      - 5433:5432
+    environment:
+      PGUSER: repl
+      PGPASSWORD: password
+    command: |
+      bash -c "
+      until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication_slot --host=db_master --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres -c hot_standby=on
+      "
+    depends_on:
+      - db_master
 
 networks:
   cart_network:
-
