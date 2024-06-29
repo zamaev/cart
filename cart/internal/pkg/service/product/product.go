@@ -2,6 +2,7 @@ package product
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,7 +35,7 @@ type GetProductResponse struct {
 	Price uint32 `json:"price"`
 }
 
-func (ps *ProductService) GetProduct(ProductSku model.ProductSku) (*model.Product, error) {
+func (ps *ProductService) GetProduct(ctx context.Context, ProductSku model.ProductSku) (*model.Product, error) {
 	url := URL + "/get_product"
 	getProductRequest := GetProductRequest{
 		Token: ps.token,
@@ -43,6 +44,12 @@ func (ps *ProductService) GetProduct(ProductSku model.ProductSku) (*model.Produc
 	body, err := json.Marshal(getProductRequest)
 	if err != nil {
 		return nil, fmt.Errorf("json.Marshal: %w", err)
+	}
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
 	}
 
 	res, err := middleware.NewRetryClient().Post(url, "application/json", bytes.NewReader(body))

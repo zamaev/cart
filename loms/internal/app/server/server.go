@@ -40,6 +40,9 @@ func NewServer(config config.Config) *Server {
 	if err != nil {
 		log.Fatalf("Unable to create connection replica pool: %v\n", err)
 	}
+	if err := dbReplicaPool.Ping(context.Background()); err != nil {
+		log.Fatalf("Unable to ping to replica database: %v\n", err)
+	}
 	dbBalancer := middleware.NewDbBalancer(dbMasterPool, dbReplicaPool)
 
 	stockRepository, err := stockrepository.NewDbStockRepository(dbBalancer)

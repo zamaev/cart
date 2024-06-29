@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -10,19 +11,37 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 const contentType = "application/json"
 
 func TestServer(t *testing.T) {
-	serverApp := httptest.NewServer(server.NewApp().Handler)
+	defer goleak.VerifyNone(t)
+
+	ctx := context.Background()
+
+	app := server.NewApp()
+	serverApp := httptest.NewServer(app.Handler)
 	defer serverApp.Close()
 
-	AddProduct(serverApp, t)
-	Checkout(serverApp, t)
-	AddProduct(serverApp, t)
-	GetCart(serverApp, t)
-	RemoveProduct(serverApp, t)
+	t.Run("AddProduct", func(t *testing.T) {
+		AddProduct(serverApp, t)
+	})
+	t.Run("Checkout", func(t *testing.T) {
+		Checkout(serverApp, t)
+	})
+	t.Run("AddProduct", func(t *testing.T) {
+		AddProduct(serverApp, t)
+	})
+	t.Run("GetCart", func(t *testing.T) {
+		GetCart(serverApp, t)
+	})
+	t.Run("RemoveProduct", func(t *testing.T) {
+		RemoveProduct(serverApp, t)
+	})
+
+	app.Shutdown(ctx)
 }
 
 func AddProduct(serverApp *httptest.Server, t *testing.T) {
