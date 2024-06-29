@@ -76,3 +76,21 @@ proto:
 .PHONY: serve-swagger
 serve-swagger:
 	bin/swagger serve --no-open api/openapiv2/loms.swagger.json
+
+
+# MIGRATIONS
+
+db-status:
+	# ONLY FOR DEV
+	cd migrations && \
+	goose postgres "postgres://user:password@localhost:5432/postgres" status
+
+db-up:
+	# ONLY FOR DEV
+	cd migrations && \
+	goose postgres "postgres://user:password@localhost:5432/postgres" up
+
+db-down:
+	# ONLY FOR DEV
+	cd migrations && \
+	goose postgres "postgres://user:password@localhost:5432/postgres" down

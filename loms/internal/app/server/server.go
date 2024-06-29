@@ -4,11 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"route256/loms/internal/pkg/config"
+	"route256/loms/internal/pkg/middleware"
 	"route256/loms/internal/pkg/model"
 	orderrepository "route256/loms/internal/pkg/repository/order_repository"
 	stockrepository "route256/loms/internal/pkg/repository/stock_repository"
 	"route256/loms/internal/pkg/service"
 	"route256/loms/pkg/api/loms/v1"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type LomsService interface {
@@ -24,12 +28,25 @@ type Server struct {
 	service LomsService
 }
 
-func NewServer() *Server {
-	stockRepository, err := stockrepository.NewStockMemoryRepository()
+func NewServer(config config.Config) *Server {
+	dbMasterPool, err := pgxpool.New(context.Background(), config.DbMasterUrl)
+	if err != nil {
+		log.Fatalf("Unable to create connection master pool: %v\n", err)
+	}
+	if err := dbMasterPool.Ping(context.Background()); err != nil {
+		log.Fatalf("Unable to ping to master database: %v\n", err)
+	}
+	dbReplicaPool, err := pgxpool.New(context.Background(), config.DbReplicaUrl)
+	if err != nil {
+		log.Fatalf("Unable to create connection replica pool: %v\n", err)
+	}
+	dbBalancer := middleware.NewDbBalancer(dbMasterPool, dbReplicaPool)
+
+	stockRepository, err := stockrepository.NewDbStockRepository(dbBalancer)
 	if err != nil {
 		log.Fatal(err)
 	}
-	orderRepository := orderrepository.NewOrderMemoryRepository()
+	orderRepository := orderrepository.NewDbOrderRepository(dbBalancer)
 	lomsService := service.NewLomsService(stockRepository, orderRepository)
 
 	return &Server{
