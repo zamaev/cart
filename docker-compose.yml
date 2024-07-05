@@ -43,7 +43,7 @@ services:
       GRPC_URL: ':50777'
       HTTP_URL: ':8097'
       DATABASE_MASTER_URL: 'postgres://user:password@db_master:5432/postgres'
-      DATABASE_REPLICA_URL: 'postgres://user:password@db_replica:5433/postgres'
+      DATABASE_REPLICA_URL: 'postgres://user:password@db_replica:5432/postgres'
     depends_on:
       db_master:
         condition: service_healthy
@@ -79,6 +79,7 @@ services:
     environment:
       PGUSER: repl
       PGPASSWORD: password
+      PGDATABASE: postgres
     command: |
       bash -c "
       until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication_slot --host=db_master --port=5432

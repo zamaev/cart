@@ -7,7 +7,11 @@ import (
 	"net/http"
 	"route256/cart/internal/pkg/customerror"
 	"route256/cart/internal/pkg/model"
+	"route256/cart/internal/pkg/utils"
+	"time"
 )
+
+const rps = 10
 
 type cartRepository interface {
 	AddProduct(ctx context.Context, userId model.UserId, ProductSku model.ProductSku, count uint16) error
@@ -18,7 +22,7 @@ type cartRepository interface {
 }
 
 type productService interface {
-	GetProduct(ProductSku model.ProductSku) (*model.Product, error)
+	GetProduct(ctx context.Context, ProductSku model.ProductSku) (*model.Product, error)
 }
 
 type lomsService interface {
@@ -44,7 +48,7 @@ func (r *CartService) AddProduct(ctx context.Context, userId model.UserId, Produ
 	if userId < 1 || ProductSku < 1 || count < 1 {
 		return errors.New("invalid userId or ProductSku or count")
 	}
-	if _, err := r.productService.GetProduct(ProductSku); err != nil {
+	if _, err := r.productService.GetProduct(ctx, ProductSku); err != nil {
 		return fmt.Errorf("r.productService.GetProduct: %w", err)
 	}
 	cartProductCount, err := r.cartRepository.GetProductCount(ctx, userId, ProductSku)
@@ -92,16 +96,29 @@ func (r *CartService) GetCart(ctx context.Context, userId model.UserId) (model.C
 		return nil, fmt.Errorf("r.cartRepository.ClearCart: %w", err)
 	}
 
-	cartFull := make(model.CartFull, len(cart))
+	eg, ctx := utils.NewErrGroup(ctx)
+	cartFullMx := model.NewCartFullMx(len(cart))
+	
+	period := time.NewTicker(time.Second / rps)
+	defer period.Stop()
+
 	for productSku, count := range cart {
-		product, err := r.productService.GetProduct(productSku)
-		if err != nil {
-			return nil, fmt.Errorf("r.productService.GetProduct: %w", err)
-		}
-		cartFull[*product] = count
+		eg.Go(func() error {
+			<-period.C
+			product, err := r.productService.GetProduct(ctx, productSku)
+			if err != nil {
+				return fmt.Errorf("r.productService.GetProduct: %w", err)
+			}
+			cartFullMx.Add(*product, count)
+			return nil
+		})
+	}
+	
+	if err := eg.Wait(); err != nil {
+		return nil, fmt.Errorf("eg.Wait: %w", err)
 	}
 
-	return cartFull, nil
+	return cartFullMx.GetCartFull(), nil
 }
 
 func (r *CartService) Checkout(ctx context.Context, userId model.UserId) (model.OrderId, error) {

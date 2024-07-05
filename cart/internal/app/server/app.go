@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"route256/cart/internal/pkg/config"
@@ -17,7 +18,8 @@ import (
 
 type App struct {
 	http.Server
-	Config config.Config
+	Config     config.Config
+	grpcClient *grpc.ClientConn
 }
 
 func NewApp() *App {
@@ -51,11 +53,20 @@ func NewApp() *App {
 			Addr:    config.CartServiceUrl,
 			Handler: h,
 		},
-		Config: config,
+		Config:     config,
+		grpcClient: grpcClient,
 	}
 }
 
 func (app *App) ListenAndServe() error {
-	log.Println("starting server app")
+	log.Printf("starting server app on url %s\n", app.Config.CartServiceUrl)
 	return app.Server.ListenAndServe()
+}
+
+func (app *App) Shutdown(ctx context.Context) error {
+	log.Println("shutting down server app")
+	if err := app.grpcClient.Close(); err != nil {
+		log.Printf("failed to close grpc client: %v\n", err)
+	}
+	return app.Server.Shutdown(ctx)
 }

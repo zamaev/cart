@@ -36,8 +36,7 @@ func (r *DbOrderRepository) Create(ctx context.Context, order model.Order) (mode
 	}
 	defer tx.Rollback(ctx)
 
-	// qtx := r.queries.WithTx(tx)
-	qtx := r.queries
+	qtx := r.queries.WithTx(tx)
 
 	id, err := qtx.Create(ctx, sqlc_order.CreateParams{
 		UserID: int64(order.User),

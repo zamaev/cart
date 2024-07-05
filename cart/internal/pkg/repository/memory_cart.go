@@ -3,11 +3,13 @@ package repository
 import (
 	"context"
 	"route256/cart/internal/pkg/model"
+	"sync"
 )
 
 type Storage map[model.UserId]model.Cart
 
 type CartMemoryRepository struct {
+	mx      sync.RWMutex
 	storage Storage
 }
 
@@ -18,6 +20,8 @@ func NewCartMemoryRepository() *CartMemoryRepository {
 }
 
 func (r *CartMemoryRepository) AddProduct(_ context.Context, userId model.UserId, ProductSku model.ProductSku, count uint16) error {
+	r.mx.Lock()
+	defer r.mx.Unlock()
 	if _, ok := r.storage[userId]; !ok {
 		r.storage[userId] = make(model.Cart)
 	}
@@ -26,6 +30,8 @@ func (r *CartMemoryRepository) AddProduct(_ context.Context, userId model.UserId
 }
 
 func (r *CartMemoryRepository) RemoveProduct(_ context.Context, userId model.UserId, ProductSku model.ProductSku) error {
+	r.mx.Lock()
+	defer r.mx.Unlock()
 	if _, ok := r.storage[userId]; !ok {
 		return nil
 	}
@@ -34,11 +40,15 @@ func (r *CartMemoryRepository) RemoveProduct(_ context.Context, userId model.Use
 }
 
 func (r *CartMemoryRepository) ClearCart(_ context.Context, userId model.UserId) error {
+	r.mx.Lock()
+	defer r.mx.Unlock()
 	delete(r.storage, userId)
 	return nil
 }
 
 func (r *CartMemoryRepository) GetCart(_ context.Context, userId model.UserId) (model.Cart, error) {
+	r.mx.Lock()
+	defer r.mx.Unlock()
 	if _, ok := r.storage[userId]; !ok {
 		r.storage[userId] = make(model.Cart)
 	}
@@ -46,6 +56,8 @@ func (r *CartMemoryRepository) GetCart(_ context.Context, userId model.UserId) (
 }
 
 func (r *CartMemoryRepository) GetProductCount(_ context.Context, userId model.UserId, ProductSku model.ProductSku) (uint16, error) {
+	r.mx.RLock()
+	defer r.mx.RUnlock()
 	if _, ok := r.storage[userId]; !ok {
 		return 0, nil
 	}

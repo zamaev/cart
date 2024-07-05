@@ -46,7 +46,7 @@ func TestAddProduct(t *testing.T) {
 			prepare: func(mocks *mocks) {
 				mocks.cartRepositoryMock.AddProductMock.Expect(ctx, 1, 1, 1).Return(nil)
 				mocks.cartRepositoryMock.GetProductCountMock.Expect(ctx, 1, 1).Return(0, nil)
-				mocks.productServiceMock.GetProductMock.Expect(1).Return(&model.Product{
+				mocks.productServiceMock.GetProductMock.Expect(ctx, 1).Return(&model.Product{
 					Sku:   1,
 					Name:  "Book",
 					Price: 100,
@@ -65,7 +65,7 @@ func TestAddProduct(t *testing.T) {
 			prepare: func(mocks *mocks) {
 				mocks.cartRepositoryMock.AddProductMock.Expect(ctx, 1, 1, 1).Return(nil)
 				mocks.cartRepositoryMock.GetProductCountMock.Expect(ctx, 1, 1).Return(0, nil)
-				mocks.productServiceMock.GetProductMock.Expect(1).Return(&model.Product{
+				mocks.productServiceMock.GetProductMock.Expect(ctx, 1).Return(&model.Product{
 					Sku:   1,
 					Name:  "Book",
 					Price: 100,
@@ -82,7 +82,7 @@ func TestAddProduct(t *testing.T) {
 			productSku: 30, // invalid sku
 			count:      1,
 			prepare: func(mocks *mocks) {
-				mocks.productServiceMock.GetProductMock.Expect(30).Return(nil, customerror.ErrStatusCode{})
+				mocks.productServiceMock.GetProductMock.Expect(ctx, 30).Return(nil, customerror.ErrStatusCode{})
 			},
 			test: func(err error) {
 				assert.ErrorAs(t, err, &customerror.ErrStatusCode{})
@@ -245,7 +245,7 @@ func TestGetCart(t *testing.T) {
 				mocks.cartRepositoryMock.GetCartMock.Expect(ctx, 1).Return(model.Cart{
 					1: 3,
 				}, nil)
-				mocks.productServiceMock.GetProductMock.Expect(1).Return(&model.Product{
+				mocks.productServiceMock.GetProductMock.Expect(ctx, 1).Return(&model.Product{
 					Sku:   1111,
 					Name:  "Book",
 					Price: 100,
@@ -267,7 +267,7 @@ func TestGetCart(t *testing.T) {
 				mocks.cartRepositoryMock.GetCartMock.Expect(ctx, 1).Return(model.Cart{
 					1: 1,
 				}, nil)
-				mocks.productServiceMock.GetProductMock.Expect(1).Return(nil, customerror.ErrStatusCode{})
+				mocks.productServiceMock.GetProductMock.Expect(ctx, 1).Return(nil, customerror.ErrStatusCode{})
 			},
 			test: func(cart model.CartFull, err error) {
 				assert.Nil(t, cart)
