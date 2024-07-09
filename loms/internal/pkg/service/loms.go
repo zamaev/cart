@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"route256/loms/internal/pkg/model"
+	"route256/loms/pkg/tracing"
 )
 
 type stockRepository interface {
@@ -31,7 +32,10 @@ func NewLomsService(stockRepository stockRepository, orderRepository orderReposi
 	}
 }
 
-func (s *LomsService) OrderCreate(ctx context.Context, order model.Order) (model.OrderID, error) {
+func (s *LomsService) OrderCreate(ctx context.Context, order model.Order) (_ model.OrderID, err error) {
+	ctx, span := tracing.Start(ctx, "LomsService.OrderCreate")
+	defer tracing.EndWithCheckError(span, &err)
+
 	orderID, err := s.orderRepository.Create(ctx, order)
 	if err != nil {
 		return 0, fmt.Errorf("orderRepository.Create: %w", err)
@@ -57,11 +61,17 @@ func (s *LomsService) OrderCreate(ctx context.Context, order model.Order) (model
 	return orderID, nil
 }
 
-func (s *LomsService) OrderInfo(ctx context.Context, orderID model.OrderID) (model.Order, error) {
+func (s *LomsService) OrderInfo(ctx context.Context, orderID model.OrderID) (_ model.Order, err error) {
+	ctx, span := tracing.Start(ctx, "LomsService.OrderInfo")
+	defer tracing.EndWithCheckError(span, &err)
+
 	return s.orderRepository.GetById(ctx, orderID)
 }
 
-func (s *LomsService) OrderPay(ctx context.Context, orderID model.OrderID) error {
+func (s *LomsService) OrderPay(ctx context.Context, orderID model.OrderID) (err error) {
+	ctx, span := tracing.Start(ctx, "LomsService.OrderPay")
+	defer tracing.EndWithCheckError(span, &err)
+
 	order, err := s.orderRepository.GetById(ctx, orderID)
 	if err != nil {
 		return fmt.Errorf("orderRepository.GetById: %w", err)
@@ -77,7 +87,10 @@ func (s *LomsService) OrderPay(ctx context.Context, orderID model.OrderID) error
 	return s.orderRepository.SetStatus(ctx, orderID, model.OrderStatusPaid)
 }
 
-func (s *LomsService) OrderCancel(ctx context.Context, orderID model.OrderID) error {
+func (s *LomsService) OrderCancel(ctx context.Context, orderID model.OrderID) (err error) {
+	ctx, span := tracing.Start(ctx, "LomsService.OrderCancel")
+	defer tracing.EndWithCheckError(span, &err)
+
 	order, err := s.orderRepository.GetById(ctx, orderID)
 	if err != nil {
 		return fmt.Errorf("orderRepository.GetById: %w", err)
@@ -93,6 +106,9 @@ func (s *LomsService) OrderCancel(ctx context.Context, orderID model.OrderID) er
 	return s.orderRepository.SetStatus(ctx, orderID, model.OrderStatusCancelled)
 }
 
-func (s *LomsService) StocksInfo(ctx context.Context, sku model.ProductSku) (uint64, error) {
+func (s *LomsService) StocksInfo(ctx context.Context, sku model.ProductSku) (_ uint64, err error) {
+	ctx, span := tracing.Start(ctx, "LomsService.StocksInfo")
+	defer tracing.EndWithCheckError(span, &err)
+
 	return s.stockRepository.GetStocksBySku(ctx, sku)
 }

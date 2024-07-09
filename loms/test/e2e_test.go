@@ -2,8 +2,8 @@ package test
 
 import (
 	"context"
-	"log"
 	"net"
+	"route256/cart/pkg/logger"
 	"route256/loms/internal/app/server"
 	"route256/loms/internal/pkg/config"
 	"route256/loms/pkg/api/loms/v1"
@@ -17,14 +17,14 @@ import (
 
 func TestServer(t *testing.T) {
 	config := config.NewConfig()
-	app := server.NewApp(config)
+	app := server.NewApp(context.Background(), config)
 
 	lis, err := net.Listen("tcp", config.GrpcUrl)
 	require.NoError(t, err)
 	defer lis.Close()
 
 	go func() {
-		log.Printf("starting server app on url %s\n", config.GrpcUrl)
+		logger.Infow(context.Background(), "starting server app", "url", config.GrpcUrl)
 		require.NoError(t, app.GrpcServer.Serve(lis))
 	}()
 

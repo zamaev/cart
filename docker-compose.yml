@@ -25,8 +25,10 @@ services:
     networks:
       - cart_network
     environment:
+      SERVICE_NAME: 'cart'
       CART_SERVICE_URL: ':8082'
       LOMS_SERVICE_URL: 'loms:50777'
+      TRACER_URL: 'jaeger:4318'
 
   loms:
     container_name: loms
@@ -42,8 +44,10 @@ services:
     environment:
       GRPC_URL: ':50777'
       HTTP_URL: ':8097'
+      SERVICE_NAME: 'loms'
       DATABASE_MASTER_URL: 'postgres://user:password@db_master:5432/postgres'
       DATABASE_REPLICA_URL: 'postgres://user:password@db_replica:5432/postgres'
+      TRACER_URL: 'jaeger:4318'
     depends_on:
       db_master:
         condition: service_healthy
@@ -93,6 +97,46 @@ services:
       "
     depends_on:
       - db_master
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v2.53.0
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+      # - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    networks:
+      - cart_network
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:9.5.20
+    volumes:
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+      # - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - cart_network
+
+  jaeger:
+    container_name: jaeger
+    image: jaegertracing/all-in-one:1.58
+    ports:
+      - "16686:16686"
+      - "4318:4318"
+    networks:
+      - cart_network
+
+# volumes:
+#   prometheus_data: {}
+#   grafana_data: {}
 
 networks:
   cart_network:

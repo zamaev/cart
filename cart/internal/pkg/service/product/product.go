@@ -11,16 +11,21 @@ import (
 	"route256/cart/internal/pkg/customerror"
 	"route256/cart/internal/pkg/middleware"
 	"route256/cart/internal/pkg/model"
+	"route256/cart/pkg/tracing"
+
+	"route256/cart/internal/pkg/utils/metrics"
+	"strconv"
+	"time"
 )
 
-const URL = "http://route256.pavl.uk:8080"
-
 type ProductService struct {
+	url   string
 	token string
 }
 
 func NewProductService(config config.Config) *ProductService {
 	return &ProductService{
+		url:   config.ProductServiceUrl,
 		token: config.ProductServiceToken,
 	}
 }
@@ -35,8 +40,11 @@ type GetProductResponse struct {
 	Price uint32 `json:"price"`
 }
 
-func (ps *ProductService) GetProduct(ctx context.Context, ProductSku model.ProductSku) (*model.Product, error) {
-	url := URL + "/get_product"
+func (ps *ProductService) GetProduct(ctx context.Context, ProductSku model.ProductSku) (_ *model.Product, err error) {
+	ctx, span := tracing.Start(ctx, "ProductService.GetProduct")
+	defer tracing.EndWithCheckError(span, &err)
+
+	url := ps.url + "/get_product"
 	getProductRequest := GetProductRequest{
 		Token: ps.token,
 		Sku:   uint32(ProductSku),
@@ -52,11 +60,16 @@ func (ps *ProductService) GetProduct(ctx context.Context, ProductSku model.Produ
 	default:
 	}
 
-	res, err := middleware.NewRetryClient().Post(url, "application/json", bytes.NewReader(body))
+	metrics.ExternalRequestCounter(url)
+	start := time.Now()
+
+	res, err := middleware.NewRetryClient().Post(ctx, url, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("http.Post: %w", err)
 	}
 	defer res.Body.Close()
+
+	metrics.ExternalRequestDuration(url, strconv.Itoa(res.StatusCode), time.Since(start).Seconds())
 
 	if res.StatusCode != http.StatusOK {
 		return nil, customerror.NewErrStatusCode(

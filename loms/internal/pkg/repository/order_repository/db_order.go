@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"route256/loms/internal/pkg/model"
 	"route256/loms/internal/pkg/repository/order_repository/sqlc_order"
+	"route256/loms/pkg/tracing"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -29,7 +30,10 @@ func NewDbOrderRepository(db DB) *DbOrderRepository {
 	}
 }
 
-func (r *DbOrderRepository) Create(ctx context.Context, order model.Order) (model.OrderID, error) {
+func (r *DbOrderRepository) Create(ctx context.Context, order model.Order) (_ model.OrderID, err error) {
+	ctx, span := tracing.Start(ctx, "DbOrderRepository.Create")
+	defer tracing.EndWithCheckError(span, &err)
+
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("r.db.Begin: %w", err)
@@ -63,7 +67,10 @@ func (r *DbOrderRepository) Create(ctx context.Context, order model.Order) (mode
 	return model.OrderID(id), nil
 }
 
-func (r *DbOrderRepository) GetById(ctx context.Context, orderID model.OrderID) (model.Order, error) {
+func (r *DbOrderRepository) GetById(ctx context.Context, orderID model.OrderID) (_ model.Order, err error) {
+	ctx, span := tracing.Start(ctx, "DbOrderRepository.GetById")
+	defer tracing.EndWithCheckError(span, &err)
+
 	orderItems, err := r.queries.GetById(ctx, int64(orderID))
 	if err != nil {
 		return model.Order{}, fmt.Errorf("r.queries.GetById: %w", err)
@@ -85,8 +92,11 @@ func (r *DbOrderRepository) GetById(ctx context.Context, orderID model.OrderID) 
 	return order, nil
 }
 
-func (r *DbOrderRepository) SetStatus(ctx context.Context, orderID model.OrderID, status model.OrderStatus) error {
-	err := r.queries.SetStatus(ctx, sqlc_order.SetStatusParams{
+func (r *DbOrderRepository) SetStatus(ctx context.Context, orderID model.OrderID, status model.OrderStatus) (err error) {
+	ctx, span := tracing.Start(ctx, "DbOrderRepository.SetStatus")
+	defer tracing.EndWithCheckError(span, &err)
+
+	err = r.queries.SetStatus(ctx, sqlc_order.SetStatusParams{
 		ID:     int64(orderID),
 		Status: string(status),
 	})

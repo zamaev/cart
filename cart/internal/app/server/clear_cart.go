@@ -5,9 +5,13 @@ import (
 	"net/http"
 	"route256/cart/internal/pkg/model"
 	"route256/cart/internal/pkg/utils"
+	"route256/cart/pkg/tracing"
 )
 
-func (s *Server) ClearCart(w http.ResponseWriter, r *http.Request) error {
+func (s *Server) ClearCart(w http.ResponseWriter, r *http.Request) (err error) {
+	ctx, span := tracing.Start(r.Context(), "server.ClearCart")
+	defer tracing.EndWithCheckError(span, &err)
+
 	w.Header().Add("Content-Type", "application/json")
 
 	userId, err := utils.GetIntPahtValue(r, "user_id")
@@ -15,7 +19,7 @@ func (s *Server) ClearCart(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("utils.GetIntPahtValue: %w", err)
 	}
 
-	if err = s.cartService.ClearCart(r.Context(), model.UserId(userId)); err != nil {
+	if err = s.cartService.ClearCart(ctx, model.UserId(userId)); err != nil {
 		return fmt.Errorf("s.cartService.ClearCart: %w", err)
 	}
 

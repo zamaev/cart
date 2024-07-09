@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
 	"route256/loms/internal/pkg/config"
 	"route256/loms/internal/pkg/middleware"
 	"route256/loms/internal/pkg/model"
@@ -11,6 +10,8 @@ import (
 	stockrepository "route256/loms/internal/pkg/repository/stock_repository"
 	"route256/loms/internal/pkg/service"
 	"route256/loms/pkg/api/loms/v1"
+	"route256/loms/pkg/logger"
+	"route256/loms/pkg/tracing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -29,25 +30,27 @@ type Server struct {
 }
 
 func NewServer(config config.Config) *Server {
-	dbMasterPool, err := pgxpool.New(context.Background(), config.DbMasterUrl)
+	ctx := context.Background()
+
+	dbMasterPool, err := pgxpool.New(ctx, config.DbMasterUrl)
 	if err != nil {
-		log.Fatalf("Unable to create connection master pool: %v\n", err)
+		logger.Panicw(ctx, "create connection master pool", "err", err)
 	}
-	if err := dbMasterPool.Ping(context.Background()); err != nil {
-		log.Fatalf("Unable to ping to master database: %v\n", err)
+	if err := dbMasterPool.Ping(ctx); err != nil {
+		logger.Panicw(ctx, "dbMasterPool.Ping", "err", err)
 	}
-	dbReplicaPool, err := pgxpool.New(context.Background(), config.DbReplicaUrl)
+	dbReplicaPool, err := pgxpool.New(ctx, config.DbReplicaUrl)
 	if err != nil {
-		log.Fatalf("Unable to create connection replica pool: %v\n", err)
+		logger.Panicw(ctx, "create connection replica pool", "err", err)
 	}
-	if err := dbReplicaPool.Ping(context.Background()); err != nil {
-		log.Fatalf("Unable to ping to replica database: %v\n", err)
+	if err := dbReplicaPool.Ping(ctx); err != nil {
+		logger.Panicw(ctx, "dbReplicaPool.Ping", "err", err)
 	}
 	dbBalancer := middleware.NewDbBalancer(dbMasterPool, dbReplicaPool)
 
 	stockRepository, err := stockrepository.NewDbStockRepository(dbBalancer)
 	if err != nil {
-		log.Fatal(err)
+		logger.Panicw(ctx, "stockrepository.NewDbStockRepository", "err", err)
 	}
 	orderRepository := orderrepository.NewDbOrderRepository(dbBalancer)
 	lomsService := service.NewLomsService(stockRepository, orderRepository)
@@ -57,7 +60,10 @@ func NewServer(config config.Config) *Server {
 	}
 }
 
-func (s *Server) OrderCreate(ctx context.Context, req *loms.OrderCreateRequest) (*loms.OrderCreateResponse, error) {
+func (s *Server) OrderCreate(ctx context.Context, req *loms.OrderCreateRequest) (res *loms.OrderCreateResponse, err error) {
+	ctx, span := tracing.Start(ctx, "Server.OrderCreate")
+	defer tracing.EndWithCheckError(span, &err)
+
 	order := model.Order{
 		User:  model.UserID(req.User),
 		Items: make([]model.OrderItem, 0, len(req.Items)),
@@ -70,6 +76,7 @@ func (s *Server) OrderCreate(ctx context.Context, req *loms.OrderCreateRequest) 
 	}
 	orderId, err := s.service.OrderCreate(ctx, order)
 	if err != nil {
+		logger.Errorw(ctx, "lomsService.OrderCreate", "err", err)
 		return nil, fmt.Errorf("lomsService.OrderCreate: %w", err)
 	}
 	return &loms.OrderCreateResponse{
@@ -77,12 +84,16 @@ func (s *Server) OrderCreate(ctx context.Context, req *loms.OrderCreateRequest) 
 	}, nil
 }
 
-func (s *Server) OrderInfo(ctx context.Context, req *loms.OrderInfoRequest) (*loms.OrderInfoResponse, error) {
+func (s *Server) OrderInfo(ctx context.Context, req *loms.OrderInfoRequest) (res *loms.OrderInfoResponse, err error) {
+	ctx, span := tracing.Start(ctx, "Server.OrderInfo")
+	defer tracing.EndWithCheckError(span, &err)
+
 	order, err := s.service.OrderInfo(ctx, model.OrderID(req.OrderId))
 	if err != nil {
+		logger.Errorw(ctx, "lomsService.OrderInfo", "err", err)
 		return nil, fmt.Errorf("lomsService.OrderInfo: %w", err)
 	}
-	res := &loms.OrderInfoResponse{
+	res = &loms.OrderInfoResponse{
 		Status: string(order.Status),
 		User:   int64(order.User),
 		Items:  make([]*loms.OrderItem, 0, len(order.Items)),
@@ -96,23 +107,37 @@ func (s *Server) OrderInfo(ctx context.Context, req *loms.OrderInfoRequest) (*lo
 	return res, nil
 }
 
-func (s *Server) OrderPay(ctx context.Context, req *loms.OrderPayRequest) (*loms.OrderPayResponse, error) {
-	err := s.service.OrderPay(ctx, model.OrderID(req.OrderId))
+func (s *Server) OrderPay(ctx context.Context, req *loms.OrderPayRequest) (res *loms.OrderPayResponse, err error) {
+	ctx, span := tracing.Start(ctx, "Server.OrderPay")
+	defer tracing.EndWithCheckError(span, &err)
+
+	err = s.service.OrderPay(ctx, model.OrderID(req.OrderId))
 	if err != nil {
+		logger.Errorw(ctx, "lomsService.OrderPay", "err", err)
 		return nil, fmt.Errorf("lomsService.OrderPay: %w", err)
 	}
 	return nil, nil
 }
-func (s *Server) OrderCancel(ctx context.Context, req *loms.OrderCancelRequest) (*loms.OrderCancelResponse, error) {
-	err := s.service.OrderCancel(ctx, model.OrderID(req.OrderId))
+
+func (s *Server) OrderCancel(ctx context.Context, req *loms.OrderCancelRequest) (res *loms.OrderCancelResponse, err error) {
+	ctx, span := tracing.Start(ctx, "Server.OrderCancel")
+	defer tracing.EndWithCheckError(span, &err)
+
+	err = s.service.OrderCancel(ctx, model.OrderID(req.OrderId))
 	if err != nil {
+		logger.Errorw(ctx, "lomsService.OrderCancel", "err", err)
 		return nil, fmt.Errorf("lomsService.OrderCancel: %w", err)
 	}
 	return nil, nil
 }
-func (s *Server) StocksInfo(ctx context.Context, req *loms.StocksInfoRequest) (*loms.StocksInfoResponse, error) {
+
+func (s *Server) StocksInfo(ctx context.Context, req *loms.StocksInfoRequest) (res *loms.StocksInfoResponse, err error) {
+	ctx, span := tracing.Start(ctx, "Server.StocksInfo")
+	defer tracing.EndWithCheckError(span, &err)
+
 	count, err := s.service.StocksInfo(ctx, model.ProductSku(req.Sku))
 	if err != nil {
+		logger.Errorw(ctx, "lomsService.StocksInfo", "err", err)
 		return nil, fmt.Errorf("lomsService.StocksInfo: %w", err)
 	}
 	return &loms.StocksInfoResponse{

@@ -2,8 +2,8 @@ package server
 
 import (
 	"context"
-	"log"
 	"net/http"
+	"net/http/pprof"
 	"route256/cart/internal/pkg/config"
 	"route256/cart/internal/pkg/middleware"
 	"route256/cart/internal/pkg/repository"
@@ -11,23 +11,29 @@ import (
 	"route256/cart/internal/pkg/service/loms"
 	"route256/cart/internal/pkg/service/product"
 	lomsapi "route256/cart/pkg/api/loms/v1"
+	"route256/cart/pkg/logger"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 type App struct {
 	http.Server
-	Config     config.Config
+	config     config.Config
 	grpcClient *grpc.ClientConn
 }
 
-func NewApp() *App {
-	config := config.NewConfig()
+func NewApp(ctx context.Context, config config.Config) *App {
 
-	grpcClient, err := grpc.NewClient(config.LomsServiceUrl, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	grpcClient, err := grpc.NewClient(
+		config.LomsServiceUrl,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+	)
 	if err != nil {
-		log.Fatal(err)
+		logger.Panicw(ctx, "grpc.NewClient", "err", err)
 	}
 	lomsClient := lomsapi.NewLomsClient(grpcClient)
 	lomsService := loms.NewLomsService(lomsClient)
@@ -38,35 +44,41 @@ func NewApp() *App {
 	cartServer := NewServer(cartService)
 
 	mux := http.NewServeMux()
-	mux.Handle("POST /user/{user_id}/cart/{sku_id}", middleware.ErrorWrapper(cartServer.AddProduct))
-	mux.Handle("DELETE /user/{user_id}/cart/{sku_id}", middleware.ErrorWrapper(cartServer.RemoveProduct))
-	mux.Handle("DELETE /user/{user_id}/cart", middleware.ErrorWrapper(cartServer.ClearCart))
-	mux.Handle("GET /user/{user_id}/cart/list", middleware.ErrorWrapper(cartServer.GetCart))
-	mux.Handle("POST /cart/checkout", middleware.ErrorWrapper(cartServer.Checkout))
+	mux.Handle("GET /metrics", promhttp.Handler())
 
-	h := middleware.LoggerWrapperHandler{
-		Wrap: mux,
-	}
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
+	muxTracerWrapper := middleware.NewMuxTracerWrapper(mux)
+	muxMetricsWrapper := middleware.NewMuxMetricsWrapper(muxTracerWrapper)
+	muxMetricsWrapper.Handle("POST /user/{user_id}/cart/{sku_id}", middleware.ErrorWrapper(cartServer.AddProduct))
+	muxMetricsWrapper.Handle("DELETE /user/{user_id}/cart/{sku_id}", middleware.ErrorWrapper(cartServer.RemoveProduct))
+	muxMetricsWrapper.Handle("DELETE /user/{user_id}/cart", middleware.ErrorWrapper(cartServer.ClearCart))
+	muxMetricsWrapper.Handle("GET /user/{user_id}/cart/list", middleware.ErrorWrapper(cartServer.GetCart))
+	muxMetricsWrapper.Handle("POST /cart/checkout", middleware.ErrorWrapper(cartServer.Checkout))
 
 	return &App{
 		Server: http.Server{
 			Addr:    config.CartServiceUrl,
-			Handler: h,
+			Handler: mux,
 		},
-		Config:     config,
+		config:     config,
 		grpcClient: grpcClient,
 	}
 }
 
-func (app *App) ListenAndServe() error {
-	log.Printf("starting server app on url %s\n", app.Config.CartServiceUrl)
+func (app *App) ListenAndServe(ctx context.Context) error {
+	logger.Infow(ctx, "starting server app", "url", app.config.CartServiceUrl)
 	return app.Server.ListenAndServe()
 }
 
 func (app *App) Shutdown(ctx context.Context) error {
-	log.Println("shutting down server app")
+	logger.Infow(ctx, "shutting down server app")
 	if err := app.grpcClient.Close(); err != nil {
-		log.Printf("failed to close grpc client: %v\n", err)
+		logger.Errorw(ctx, "failed to close grpc client", "err", err)
 	}
 	return app.Server.Shutdown(ctx)
 }

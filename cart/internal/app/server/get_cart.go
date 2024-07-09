@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"route256/cart/internal/pkg/model"
 	"route256/cart/internal/pkg/utils"
+	"route256/cart/pkg/tracing"
 	"sort"
 )
 
@@ -21,7 +22,10 @@ type GetCartResponse struct {
 	TotalPrice uint32                   `json:"total_price"`
 }
 
-func (s *Server) GetCart(w http.ResponseWriter, r *http.Request) error {
+func (s *Server) GetCart(w http.ResponseWriter, r *http.Request) (err error) {
+	ctx, span := tracing.Start(r.Context(), "server.GetCart")
+	defer tracing.EndWithCheckError(span, &err)
+
 	w.Header().Add("Content-Type", "application/json")
 
 	userId, err := utils.GetIntPahtValue(r, "user_id")
@@ -29,7 +33,7 @@ func (s *Server) GetCart(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("utils.GetIntPahtValue: %w", err)
 	}
 
-	cartFull, err := s.cartService.GetCart(r.Context(), model.UserId(userId))
+	cartFull, err := s.cartService.GetCart(ctx, model.UserId(userId))
 	if err != nil {
 		return fmt.Errorf("s.cartService.ClearCart: %w", err)
 	}
