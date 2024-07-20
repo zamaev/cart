@@ -5,6 +5,12 @@ build-all:
 run-all: build-all
 	docker-compose up --force-recreate --build -d
 
+up-monitor:
+	sudo docker compose up -d prometheus grafana jaeger
+
+up-db:
+	sudo docker compose up -d db_master db_replica
+
 up:
 	sudo docker compose up -d
 

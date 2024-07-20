@@ -85,7 +85,7 @@ GET http://localhost:8082/user/0/cart/list
 Content-Type: application/json
 ### 400 bad request
 
-###
+### checkout
 POST http://localhost:8082/cart/checkout
 Content-Type: application/json
 

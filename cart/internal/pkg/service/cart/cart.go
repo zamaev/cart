@@ -8,6 +8,7 @@ import (
 	"route256/cart/internal/pkg/customerror"
 	"route256/cart/internal/pkg/model"
 	"route256/cart/internal/pkg/utils"
+	"route256/cart/pkg/tracing"
 	"time"
 )
 
@@ -44,7 +45,10 @@ func NewCartService(cartRepository cartRepository, productService productService
 	}
 }
 
-func (r *CartService) AddProduct(ctx context.Context, userId model.UserId, ProductSku model.ProductSku, count uint16) error {
+func (r *CartService) AddProduct(ctx context.Context, userId model.UserId, ProductSku model.ProductSku, count uint16) (err error) {
+	ctx, span := tracing.Start(ctx, "CartService.AddProduct")
+	defer tracing.EndWithCheckError(span, &err)
+
 	if userId < 1 || ProductSku < 1 || count < 1 {
 		return errors.New("invalid userId or ProductSku or count")
 	}
@@ -66,7 +70,10 @@ func (r *CartService) AddProduct(ctx context.Context, userId model.UserId, Produ
 	return nil
 }
 
-func (r *CartService) RemoveProduct(ctx context.Context, userId model.UserId, ProductSku model.ProductSku) error {
+func (r *CartService) RemoveProduct(ctx context.Context, userId model.UserId, ProductSku model.ProductSku) (err error) {
+	ctx, span := tracing.Start(ctx, "CartService.RemoveProduct")
+	defer tracing.EndWithCheckError(span, &err)
+
 	if userId < 1 || ProductSku < 1 {
 		return errors.New("invalid userId or ProductSku")
 	}
@@ -76,7 +83,10 @@ func (r *CartService) RemoveProduct(ctx context.Context, userId model.UserId, Pr
 	return nil
 }
 
-func (r *CartService) ClearCart(ctx context.Context, userId model.UserId) error {
+func (r *CartService) ClearCart(ctx context.Context, userId model.UserId) (err error) {
+	ctx, span := tracing.Start(ctx, "CartService.ClearCart")
+	defer tracing.EndWithCheckError(span, &err)
+
 	if userId < 1 {
 		return errors.New("invalid userId")
 	}
@@ -86,7 +96,10 @@ func (r *CartService) ClearCart(ctx context.Context, userId model.UserId) error 
 	return nil
 }
 
-func (r *CartService) GetCart(ctx context.Context, userId model.UserId) (model.CartFull, error) {
+func (r *CartService) GetCart(ctx context.Context, userId model.UserId) (_ model.CartFull, err error) {
+	ctx, span := tracing.Start(ctx, "CartService.GetCart")
+	defer tracing.EndWithCheckError(span, &err)
+
 	if userId < 1 {
 		return nil, errors.New("invalid userId")
 	}
@@ -98,7 +111,7 @@ func (r *CartService) GetCart(ctx context.Context, userId model.UserId) (model.C
 
 	eg, ctx := utils.NewErrGroup(ctx)
 	cartFullMx := model.NewCartFullMx(len(cart))
-	
+
 	period := time.NewTicker(time.Second / rps)
 	defer period.Stop()
 
@@ -113,7 +126,7 @@ func (r *CartService) GetCart(ctx context.Context, userId model.UserId) (model.C
 			return nil
 		})
 	}
-	
+
 	if err := eg.Wait(); err != nil {
 		return nil, fmt.Errorf("eg.Wait: %w", err)
 	}
@@ -121,7 +134,10 @@ func (r *CartService) GetCart(ctx context.Context, userId model.UserId) (model.C
 	return cartFullMx.GetCartFull(), nil
 }
 
-func (r *CartService) Checkout(ctx context.Context, userId model.UserId) (model.OrderId, error) {
+func (r *CartService) Checkout(ctx context.Context, userId model.UserId) (_ model.OrderId, err error) {
+	ctx, span := tracing.Start(ctx, "CartService.Checkout")
+	defer tracing.EndWithCheckError(span, &err)
+
 	if userId < 1 {
 		return 0, errors.New("invalid userId")
 	}

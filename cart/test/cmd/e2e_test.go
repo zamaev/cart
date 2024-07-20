@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"route256/cart/internal/app/server"
+	"route256/cart/internal/pkg/config"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -21,7 +22,7 @@ func TestServer(t *testing.T) {
 
 	ctx := context.Background()
 
-	app := server.NewApp()
+	app := server.NewApp(ctx, config.NewConfig())
 	serverApp := httptest.NewServer(app.Handler)
 	defer serverApp.Close()
 

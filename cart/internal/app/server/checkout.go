@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"route256/cart/internal/pkg/model"
+	"route256/cart/pkg/tracing"
 )
 
 type CheckoutRequest struct {
@@ -16,7 +17,10 @@ type CheckoutResponse struct {
 	OrderId int64 `json:"order_id"`
 }
 
-func (s *Server) Checkout(w http.ResponseWriter, r *http.Request) error {
+func (s *Server) Checkout(w http.ResponseWriter, r *http.Request) (err error) {
+	ctx, span := tracing.Start(r.Context(), "server.Checkout")
+	defer tracing.EndWithCheckError(span, &err)
+
 	w.Header().Add("Content-Type", "application/json")
 
 	reqData, err := io.ReadAll(r.Body)
@@ -31,7 +35,7 @@ func (s *Server) Checkout(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("json.Unmarshal: %w", err)
 	}
 
-	orderId, err := s.cartService.Checkout(r.Context(), model.UserId(checkoutRequest.UserId))
+	orderId, err := s.cartService.Checkout(ctx, model.UserId(checkoutRequest.UserId))
 	if err != nil {
 		return fmt.Errorf("s.cartService.Checkout: %w", err)
 	}
