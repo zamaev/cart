@@ -2,7 +2,7 @@
 // versions:
 //   sqlc v1.26.0
 
-package sqlc_order
+package sqlc_outbox
 
 import (
 	"github.com/jackc/pgx/v5/pgtype"

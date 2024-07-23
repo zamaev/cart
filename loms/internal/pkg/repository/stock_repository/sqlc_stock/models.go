@@ -24,6 +24,15 @@ type OrderItem struct {
 	UpdatedAt pgtype.Timestamp
 }
 
+type Outbox struct {
+	ID          int64
+	Topic       string
+	Event       []byte
+	Headers     []byte
+	CreatedAt   pgtype.Timestamp
+	CompletedAt pgtype.Timestamp
+}
+
 type Stock struct {
 	Sku        int64
 	TotalCount int32

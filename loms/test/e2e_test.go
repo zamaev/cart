@@ -16,7 +16,8 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	config := config.NewConfig()
+	config, err := config.NewConfig()
+	require.NoError(t, err)
 	app := server.NewApp(context.Background(), config)
 
 	lis, err := net.Listen("tcp", config.GrpcUrl)
