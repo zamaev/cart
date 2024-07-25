@@ -22,6 +22,7 @@ import (
 type App struct {
 	GrpcServer *grpc.Server
 	GwServer   *http.Server
+	LomsServer *Server
 }
 
 func NewApp(ctx context.Context, config config.Config) *App {
@@ -67,5 +68,11 @@ func NewApp(ctx context.Context, config config.Config) *App {
 			Addr:    config.HttpUrl,
 			Handler: mux,
 		},
+		LomsServer: lomsServer,
 	}
+}
+
+func (app *App) Shutdown(ctx context.Context) {
+	logger.Infow(ctx, "shutting down loms server app")
+	app.LomsServer.Shutdown()
 }

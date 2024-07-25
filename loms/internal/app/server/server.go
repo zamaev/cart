@@ -4,15 +4,19 @@ import (
 	"context"
 	"fmt"
 	"route256/loms/internal/pkg/config"
+	"route256/loms/internal/pkg/inrfa/kafka/producer"
 	"route256/loms/internal/pkg/middleware"
 	"route256/loms/internal/pkg/model"
 	orderrepository "route256/loms/internal/pkg/repository/order_repository"
+	outboxrepository "route256/loms/internal/pkg/repository/outbox_repository"
 	stockrepository "route256/loms/internal/pkg/repository/stock_repository"
 	"route256/loms/internal/pkg/service"
 	"route256/loms/pkg/api/loms/v1"
 	"route256/loms/pkg/logger"
 	"route256/loms/pkg/tracing"
+	"time"
 
+	"github.com/IBM/sarama"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -24,9 +28,15 @@ type LomsService interface {
 	StocksInfo(ctx context.Context, sku model.ProductSku) (uint64, error)
 }
 
+type Producer interface {
+	Close()
+	RunEventsHandle()
+}
+
 type Server struct {
 	loms.UnimplementedLomsServer
-	service LomsService
+	service  LomsService
+	producer Producer
 }
 
 func NewServer(config config.Config) *Server {
@@ -53,11 +63,34 @@ func NewServer(config config.Config) *Server {
 		logger.Panicw(ctx, "stockrepository.NewDbStockRepository", "err", err)
 	}
 	orderRepository := orderrepository.NewDbOrderRepository(dbBalancer)
-	lomsService := service.NewLomsService(stockRepository, orderRepository)
+	outboxRepository := outboxrepository.NewDbOutboxRepository(dbBalancer)
+	orderOutboxWrapper := middleware.NewOrderOutboxWrapper(orderRepository, outboxRepository, config.Kafka)
+	lomsService := service.NewLomsService(stockRepository, orderOutboxWrapper)
+
+	prod, err := producer.NewProducer(ctx, config.Kafka, outboxRepository,
+		producer.WithProducerPartitioner(sarama.NewHashPartitioner),
+		producer.WithRequiredAcks(sarama.WaitForAll),
+		producer.WithMaxRetries(5),
+		producer.WithRetryBackoff(10*time.Millisecond),
+		producer.WithMaxOpenRequests(1),
+		producer.WithProducerCompression(sarama.CompressionGZIP),
+		producer.WithProducerReturnSuccesse(),
+		producer.WithProducerFlushMessages(8),
+		producer.WithProducerFlushFrequency(5*time.Second),
+	)
+	if err != nil {
+		logger.Panicw(ctx, "producer.NewProducer", "err", err)
+	}
+	go prod.RunEventsHandle()
 
 	return &Server{
-		service: lomsService,
+		service:  lomsService,
+		producer: prod,
 	}
+}
+
+func (s *Server) Shutdown() {
+	s.producer.Close()
 }
 
 func (s *Server) OrderCreate(ctx context.Context, req *loms.OrderCreateRequest) (res *loms.OrderCreateResponse, err error) {

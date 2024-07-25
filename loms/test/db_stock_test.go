@@ -32,7 +32,8 @@ func TestStockSuite(t *testing.T) {
 }
 
 func (s *StockSute) SetupSuite() {
-	config := config.NewConfig()
+	config, err := config.NewConfig()
+	require.NoError(s.T(), err)
 	testconfig := testconfig.NewConfig()
 
 	dbMasterPool, err := pgxpool.New(context.Background(), config.DbMasterUrl)

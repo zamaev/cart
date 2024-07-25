@@ -16,3 +16,11 @@ sql:
         package: "sqlc_order"
         out: "../internal/pkg/repository/order_repository/sqlc_order"
         sql_package: "pgx/v5"
+  - engine: "postgresql"
+    schema: "../migrations"
+    queries: "../internal/pkg/repository/outbox_repository/sqlc_outbox"
+    gen:
+      go:
+        package: "sqlc_outbox"
+        out: "../internal/pkg/repository/outbox_repository/sqlc_outbox"
+        sql_package: "pgx/v5"

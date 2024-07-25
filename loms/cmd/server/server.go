@@ -17,7 +17,10 @@ import (
 
 func main() {
 	ctx := context.Background()
-	config := config.NewConfig()
+	config, err := config.NewConfig()
+	if err != nil {
+		logger.Panicw(ctx, "config.NewConfig", "err", err)
+	}
 
 	logger.Set(logger.With("service", config.ServiceName))
 
@@ -39,6 +42,8 @@ func main() {
 	if err != nil {
 		logger.Panicw(ctx, "net.Listen", "err", err)
 	}
+
+	defer app.Shutdown(ctx)
 
 	go func() {
 		logger.Infow(ctx, "starting server app", "url", config.GrpcUrl)

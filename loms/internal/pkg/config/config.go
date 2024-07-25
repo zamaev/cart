@@ -1,7 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"os"
+	"route256/loms/internal/pkg/inrfa/kafka"
+	"strconv"
 	"strings"
 )
 
@@ -12,9 +15,12 @@ type Config struct {
 	DbMasterUrl  string
 	DbReplicaUrl string
 	TracerUrl    string
+	Kafka        kafka.Config
 }
 
-func NewConfig() Config {
+func NewConfig() (Config, error) {
+	var err error
+
 	serviceName := os.Getenv("SERVICE_NAME")
 	if serviceName == "" {
 		serviceName = "loms"
@@ -42,6 +48,25 @@ func NewConfig() Config {
 	if !strings.HasPrefix(tracerUrl, "http") {
 		tracerUrl = "http://" + tracerUrl
 	}
+
+	kafkaBrokers := []string{"localhost:9092"}
+	kafkaBrokersRaw := os.Getenv("KAFKA_BROKERS")
+	if kafkaBrokersRaw != "" {
+		kafkaBrokers = strings.Split(kafkaBrokersRaw, ",")
+	}
+	kafkaOrderEventsTopic := os.Getenv("KAFKA_ORDER_EVENTS_TOPIC")
+	if kafkaOrderEventsTopic == "" {
+		kafkaOrderEventsTopic = "loms.order-events"
+	}
+	handleEventsInterval := int64(5)
+	handleEventsIntervalRaw := os.Getenv("HANDLE_EVENTS_INTERVAL")
+	if handleEventsIntervalRaw != "" {
+		handleEventsInterval, err = strconv.ParseInt(handleEventsIntervalRaw, 10, 64)
+		if err != nil {
+			return Config{}, fmt.Errorf("strconv.Atoi: %w", err)
+		}
+	}
+
 	return Config{
 		ServiceName:  serviceName,
 		GrpcUrl:      grpcUrl,
@@ -49,5 +74,10 @@ func NewConfig() Config {
 		DbMasterUrl:  dbMasterUrl,
 		DbReplicaUrl: dbReplicaUrl,
 		TracerUrl:    tracerUrl,
-	}
+		Kafka: kafka.Config{
+			Brokers:              kafkaBrokers,
+			OrderEventsTopic:     kafkaOrderEventsTopic,
+			HandleEventsInterval: handleEventsInterval,
+		},
+	}, nil
 }
