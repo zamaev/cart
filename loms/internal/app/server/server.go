@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"route256/loms/internal/pkg/config"
-	"route256/loms/internal/pkg/infa/kafka/producer"
+	"route256/loms/internal/pkg/inrfa/kafka/producer"
 	"route256/loms/internal/pkg/middleware"
 	"route256/loms/internal/pkg/model"
 	orderrepository "route256/loms/internal/pkg/repository/order_repository"

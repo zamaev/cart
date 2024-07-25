@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"route256/loms/internal/pkg/infa/kafka"
+	"route256/loms/internal/pkg/inrfa/kafka"
 	"route256/loms/internal/pkg/model"
 	"route256/loms/pkg/logger"
 	"strconv"

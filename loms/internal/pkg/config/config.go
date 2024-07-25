@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
-	"route256/loms/internal/pkg/infa/kafka"
+	"route256/loms/internal/pkg/inrfa/kafka"
 	"strconv"
 	"strings"
 )
