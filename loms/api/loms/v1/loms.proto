@@ -56,6 +56,11 @@ service Loms {
             get: "/v1/stocks_info/{sku}"
         };
     };
+    rpc GetAllOrders(GetAllOrdersRequest) returns (GetAllOrdersResponse) {
+        option (google.api.http) = {
+            get: "/v1/get_all_orders"
+        };
+    };
 }
 
 message OrderItem {
@@ -77,6 +82,7 @@ message OrderInfoRequest {
 }
 
 message OrderInfoResponse {
+    int64 id = 4;
     string status = 1;
     int64 user = 2;
     repeated OrderItem items = 3;
@@ -100,4 +106,10 @@ message StocksInfoRequest {
 
 message StocksInfoResponse {
     uint64 count = 1;
+}
+
+message GetAllOrdersRequest {}
+
+message GetAllOrdersResponse {
+    repeated OrderInfoResponse orders = 1;
 }

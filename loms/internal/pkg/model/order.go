@@ -19,6 +19,7 @@ type OrderItem struct {
 }
 
 type Order struct {
+	ID     OrderID
 	Status OrderStatus
 	User   UserID
 	Items  []OrderItem

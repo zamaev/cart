@@ -4,16 +4,19 @@ import (
 	"context"
 	"net/http"
 	"net/http/pprof"
+	"route256/cart/internal/pkg/cache"
 	"route256/cart/internal/pkg/config"
 	"route256/cart/internal/pkg/middleware"
 	"route256/cart/internal/pkg/repository"
 	"route256/cart/internal/pkg/service/cart"
 	"route256/cart/internal/pkg/service/loms"
 	"route256/cart/internal/pkg/service/product"
+	"route256/cart/internal/pkg/service/product/product_cache"
 	lomsapi "route256/cart/pkg/api/loms/v1"
 	"route256/cart/pkg/logger"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -26,7 +29,6 @@ type App struct {
 }
 
 func NewApp(ctx context.Context, config config.Config) *App {
-
 	grpcClient, err := grpc.NewClient(
 		config.LomsServiceUrl,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -40,7 +42,19 @@ func NewApp(ctx context.Context, config config.Config) *App {
 
 	cartRepository := repository.NewCartMemoryRepository()
 	productService := product.NewProductService(config)
-	cartService := cart.NewCartService(cartRepository, productService, lomsService)
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     config.RedisUrl,
+		Password: config.RedisPassword,
+		DB:       config.RedisDB,
+	})
+	if _, err := redisClient.Ping(context.Background()).Result(); err != nil {
+		logger.Panicw(ctx, "cache.Ping", "err", err)
+	}
+	cache := cache.NewRedisLRUCache(redisClient, config.CacheSize)
+	productCacheService := product_cache.NewProductCacheService(productService, cache, config.CacheDefaultTTL)
+
+	cartService := cart.NewCartService(cartRepository, productCacheService, lomsService)
 	cartServer := NewServer(cartService)
 
 	mux := http.NewServeMux()

@@ -16,7 +16,9 @@ func Panic(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grp
 
 	defer func() {
 		if e := recover(); e != nil {
-			span.AddEvent("panic")
+			if span != nil {
+				span.AddEvent("panic")
+			}
 			logger.Errorw(ctx, "panic", "err", e)
 			err = status.Errorf(codes.Internal, "panic: %v", e)
 		}

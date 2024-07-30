@@ -2,7 +2,9 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -12,6 +14,11 @@ type Config struct {
 	ProductServiceUrl   string
 	ProductServiceToken string
 	TracerUrl           string
+	RedisUrl            string
+	RedisPassword       string
+	RedisDB             int
+	CacheSize           int
+	CacheDefaultTTL     time.Duration
 }
 
 func NewConfig() Config {
@@ -42,6 +49,26 @@ func NewConfig() Config {
 	if !strings.HasPrefix(tracerUrl, "http") {
 		tracerUrl = "http://" + tracerUrl
 	}
+	redisUrl := os.Getenv("REDIS_URL")
+	if redisUrl == "" {
+		redisUrl = "localhost:6379"
+	}
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+	if redisPassword == "" {
+		redisPassword = "passwd"
+	}
+	redisDB, err := strconv.Atoi(os.Getenv("REDIS_DB"))
+	if err != nil {
+		redisDB = 0
+	}
+	cacheSize, err := strconv.Atoi(os.Getenv("CACHE_SIZE"))
+	if err != nil {
+		cacheSize = 1000
+	}
+	cacheDefaultTTL, err := strconv.Atoi(os.Getenv("CACHE_DEFAULT_TTL"))
+	if err != nil {
+		cacheDefaultTTL = 60
+	}
 	return Config{
 		ServiceName:         serviceName,
 		CartServiceUrl:      cartServiceUrl,
@@ -49,5 +76,10 @@ func NewConfig() Config {
 		ProductServiceUrl:   productServiceUrl,
 		ProductServiceToken: productServiceToken,
 		TracerUrl:           tracerUrl,
+		RedisUrl:            redisUrl,
+		RedisPassword:       redisPassword,
+		RedisDB:             redisDB,
+		CacheSize:           cacheSize,
+		CacheDefaultTTL:     time.Duration(cacheDefaultTTL) * time.Second,
 	}
 }

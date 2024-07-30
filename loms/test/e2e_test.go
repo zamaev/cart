@@ -62,12 +62,12 @@ func OrderCreate(lomsClient loms.LomsClient, t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.Equal(t, int64(1), res.OrderId)
+	require.Equal(t, int64(1001), res.OrderId)
 }
 
 func OrderInfo(lomsClient loms.LomsClient, t *testing.T) {
 	res, err := lomsClient.OrderInfo(context.Background(), &loms.OrderInfoRequest{
-		OrderId: 1,
+		OrderId: 1001,
 	})
 	require.Equal(t, "awaiting payment", res.Status)
 	require.Equal(t, int64(1), res.User)
@@ -79,12 +79,12 @@ func OrderInfo(lomsClient loms.LomsClient, t *testing.T) {
 
 func OrderPay(lomsClient loms.LomsClient, t *testing.T) {
 	_, err := lomsClient.OrderPay(context.Background(), &loms.OrderPayRequest{
-		OrderId: 1,
+		OrderId: 1001,
 	})
 	require.NoError(t, err)
 
 	res, err := lomsClient.OrderInfo(context.Background(), &loms.OrderInfoRequest{
-		OrderId: 1,
+		OrderId: 1001,
 	})
 	require.NoError(t, err)
 	require.Equal(t, "payed", res.Status)
@@ -101,19 +101,19 @@ func OrderCreate2(lomsClient loms.LomsClient, t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.Equal(t, int64(2), res.OrderId)
+	require.Equal(t, int64(2001), res.OrderId)
 }
 
 func OrderCancel(lomsClient loms.LomsClient, t *testing.T) {
 	_, err := lomsClient.OrderCancel(context.Background(), &loms.OrderCancelRequest{
-		OrderId: 2,
+		OrderId: 2001,
 	})
 	require.NoError(t, err)
 }
 
 func OrderInfo2(lomsClient loms.LomsClient, t *testing.T) {
 	res, err := lomsClient.OrderInfo(context.Background(), &loms.OrderInfoRequest{
-		OrderId: 2,
+		OrderId: 2001,
 	})
 	require.NoError(t, err)
 	require.Equal(t, "cancelled", res.Status)

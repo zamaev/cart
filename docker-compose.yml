@@ -29,6 +29,11 @@ services:
       CART_SERVICE_URL: ':8082'
       LOMS_SERVICE_URL: 'loms:50777'
       TRACER_URL: 'jaeger:4318'
+      REDIS_URL: 'redis:6379'
+      REDIS_PASSWORD: 'passwd'
+    depends_on:
+      redis:
+        condition: service_healthy
 
   loms:
     container_name: loms
@@ -46,6 +51,7 @@ services:
       HTTP_URL: ':8097'
       SERVICE_NAME: 'loms'
       DATABASE_MASTER_URL: 'postgres://user:password@db_master:5432/postgres'
+      DATABASE_MASTER-SHARD-2_URL: 'postgres://user:password@db_master-shard-2:5432/postgres'
       DATABASE_REPLICA_URL: 'postgres://user:password@db_replica:5432/postgres'
       TRACER_URL: 'jaeger:4318'
       KAFKA_BROKERS: 'kafka0:9092'
@@ -54,6 +60,8 @@ services:
       db_master:
         condition: service_healthy
       db_replica:
+        condition: service_healthy
+      db_master-shard-2:
         condition: service_healthy
       kafka0:
         condition: service_healthy
@@ -80,6 +88,16 @@ services:
       -c hot_standby_feedback=on
     volumes:
       - ./replication_init.sql:/docker-entrypoint-initdb.d/replication_init.sql
+
+  db_master-shard-2:
+    <<: *postgres-common
+    container_name: db_master-shard-2
+    ports:
+      - 5434:5432
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: password
 
   db_replica:
     <<: *postgres-common
@@ -233,6 +251,22 @@ services:
       - cart_network
     depends_on:
       - notifier-1
+
+  redis:
+    container_name: redis
+    image: redis:7.2
+    restart: always
+    networks:
+      - cart_network
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_PASSWORD=passwd
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 # volumes:
 #   prometheus_data: {}

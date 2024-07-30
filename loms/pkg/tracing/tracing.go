@@ -19,10 +19,16 @@ func Set(trc trace.Tracer) {
 }
 
 func Start(ctx context.Context, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+	if tracer == nil {
+		return ctx, nil
+	}
 	return tracer.Start(ctx, spanName, opts...)
 }
 
 func EndWithCheckError(span trace.Span, err *error) {
+	if span == nil {
+		return
+	}
 	if *err != nil {
 		span.SetStatus(codes.Error, (*err).Error())
 		span.RecordError(*err)

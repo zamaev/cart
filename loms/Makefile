@@ -88,9 +88,11 @@ db-status:
 db-up:
 	# ONLY FOR DEV
 	cd migrations && \
-	goose postgres "postgres://user:password@localhost:5432/postgres" up
+	goose postgres "postgres://user:password@localhost:5432/postgres" up && \
+	goose postgres "postgres://user:password@localhost:5434/postgres" up
 
 db-down:
 	# ONLY FOR DEV
 	cd migrations && \
-	goose postgres "postgres://user:password@localhost:5432/postgres" down
+	goose postgres "postgres://user:password@localhost:5432/postgres" down && \
+	goose postgres "postgres://user:password@localhost:5434/postgres" down

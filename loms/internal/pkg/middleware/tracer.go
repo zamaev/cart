@@ -12,8 +12,10 @@ func Tracer(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler gr
 	ctx, span := tracing.Start(ctx, info.FullMethod)
 	defer tracing.EndWithCheckError(span, &err)
 
-	l := logger.With("trace_id", span.SpanContext().TraceID())
-	ctx = logger.ToContext(ctx, l)
+	if span != nil {
+		l := logger.With("trace_id", span.SpanContext().TraceID())
+		ctx = logger.ToContext(ctx, l)
+	}
 
 	return handler(ctx, req)
 }

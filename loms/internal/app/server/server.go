@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"route256/loms/internal/pkg/config"
 	"route256/loms/internal/pkg/inrfa/kafka/producer"
+	"route256/loms/internal/pkg/inrfa/shard_manager"
 	"route256/loms/internal/pkg/middleware"
 	"route256/loms/internal/pkg/model"
 	orderrepository "route256/loms/internal/pkg/repository/order_repository"
@@ -26,6 +27,7 @@ type LomsService interface {
 	OrderPay(ctx context.Context, orderID model.OrderID) error
 	OrderCancel(ctx context.Context, orderID model.OrderID) error
 	StocksInfo(ctx context.Context, sku model.ProductSku) (uint64, error)
+	GetAllOrders(ctx context.Context) ([]model.Order, error)
 }
 
 type Producer interface {
@@ -56,13 +58,25 @@ func NewServer(config config.Config) *Server {
 	if err := dbReplicaPool.Ping(ctx); err != nil {
 		logger.Panicw(ctx, "dbReplicaPool.Ping", "err", err)
 	}
+	dbMasterShard2Pool, err := pgxpool.New(ctx, config.DbMasterShard2Url)
+	if err != nil {
+		logger.Panicw(ctx, "create connection master shard2 pool", "err", err)
+	}
+	if err := dbMasterShard2Pool.Ping(ctx); err != nil {
+		logger.Panicw(ctx, "dbMasterShard2Pool.Ping", "err", err)
+	}
+	shardManager := shard_manager.NewShardManager(
+		shard_manager.GetMurmur3ShardFn(2),
+		dbMasterPool,
+		dbMasterShard2Pool,
+	)
 	dbBalancer := middleware.NewDbBalancer(dbMasterPool, dbReplicaPool)
 
 	stockRepository, err := stockrepository.NewDbStockRepository(dbBalancer)
 	if err != nil {
 		logger.Panicw(ctx, "stockrepository.NewDbStockRepository", "err", err)
 	}
-	orderRepository := orderrepository.NewDbOrderRepository(dbBalancer)
+	orderRepository := orderrepository.NewDbOrderRepository(shardManager)
 	outboxRepository := outboxrepository.NewDbOutboxRepository(dbBalancer)
 	orderOutboxWrapper := middleware.NewOrderOutboxWrapper(orderRepository, outboxRepository, config.Kafka)
 	lomsService := service.NewLomsService(stockRepository, orderOutboxWrapper)
@@ -127,6 +141,7 @@ func (s *Server) OrderInfo(ctx context.Context, req *loms.OrderInfoRequest) (res
 		return nil, fmt.Errorf("lomsService.OrderInfo: %w", err)
 	}
 	res = &loms.OrderInfoResponse{
+		Id:     int64(order.ID),
 		Status: string(order.Status),
 		User:   int64(order.User),
 		Items:  make([]*loms.OrderItem, 0, len(order.Items)),
@@ -176,4 +191,34 @@ func (s *Server) StocksInfo(ctx context.Context, req *loms.StocksInfoRequest) (r
 	return &loms.StocksInfoResponse{
 		Count: uint64(count),
 	}, nil
+}
+
+func (s *Server) GetAllOrders(ctx context.Context, req *loms.GetAllOrdersRequest) (res *loms.GetAllOrdersResponse, err error) {
+	ctx, span := tracing.Start(ctx, "Server.GetAllOrders")
+	defer tracing.EndWithCheckError(span, &err)
+
+	orders, err := s.service.GetAllOrders(ctx)
+	if err != nil {
+		logger.Errorw(ctx, "lomsService.GetAllOrders", "err", err)
+		return nil, fmt.Errorf("lomsService.GetAllOrders: %w", err)
+	}
+
+	res = &loms.GetAllOrdersResponse{
+		Orders: make([]*loms.OrderInfoResponse, 0, len(orders)),
+	}
+	for _, order := range orders {
+		res.Orders = append(res.Orders, &loms.OrderInfoResponse{
+			Id:     int64(order.ID),
+			Status: string(order.Status),
+			User:   int64(order.User),
+			Items:  make([]*loms.OrderItem, 0, len(order.Items)),
+		})
+		for _, item := range order.Items {
+			res.Orders[len(res.Orders)-1].Items = append(res.Orders[len(res.Orders)-1].Items, &loms.OrderItem{
+				Sku:   uint32(item.Sku),
+				Count: uint32(item.Count),
+			})
+		}
+	}
+	return res, nil
 }

@@ -29,22 +29,65 @@ func (q *Queries) AddItem(ctx context.Context, arg AddItemParams) error {
 
 const create = `-- name: Create :one
 INSERT INTO orders
-    (user_id, status)
+    (id, user_id, status)
 VALUES
-    ($1, $2)
+    (nextval('order_id_manual_seq') + $3::int, $1, $2)
 RETURNING id
 `
 
 type CreateParams struct {
-	UserID int64
-	Status string
+	UserID  int64
+	Status  string
+	ShardID int32
 }
 
 func (q *Queries) Create(ctx context.Context, arg CreateParams) (int64, error) {
-	row := q.db.QueryRow(ctx, create, arg.UserID, arg.Status)
+	row := q.db.QueryRow(ctx, create, arg.UserID, arg.Status, arg.ShardID)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+const getAll = `-- name: GetAll :many
+SELECT orders.id, orders.user_id, orders.status, orders.created_at, orders.updated_at, order_items.order_id, order_items.sku, order_items.count, order_items.created_at, order_items.updated_at
+FROM orders
+LEFT JOIN order_items ON orders.id = order_items.order_id
+`
+
+type GetAllRow struct {
+	Order     Order
+	OrderItem OrderItem
+}
+
+func (q *Queries) GetAll(ctx context.Context) ([]GetAllRow, error) {
+	rows, err := q.db.Query(ctx, getAll)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllRow
+	for rows.Next() {
+		var i GetAllRow
+		if err := rows.Scan(
+			&i.Order.ID,
+			&i.Order.UserID,
+			&i.Order.Status,
+			&i.Order.CreatedAt,
+			&i.Order.UpdatedAt,
+			&i.OrderItem.OrderID,
+			&i.OrderItem.Sku,
+			&i.OrderItem.Count,
+			&i.OrderItem.CreatedAt,
+			&i.OrderItem.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getById = `-- name: GetById :many

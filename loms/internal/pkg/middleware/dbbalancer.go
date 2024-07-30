@@ -56,7 +56,9 @@ func (db *DbBalancer) Query(ctx context.Context, sql string, args ...interface{}
 
 func (db *DbBalancer) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
 	ctx, span := tracing.Start(ctx, "DbBalancer.QueryRow")
-	defer span.End()
+	if span != nil {
+		defer span.End()
+	}
 
 	metrics.DbRequestCounter(utils.GetSqlType(sql))
 	defer func(start time.Time) {
