@@ -25,6 +25,12 @@ type OrderRepositoryMock struct {
 	beforeCreateCounter uint64
 	CreateMock          mOrderRepositoryMockCreate
 
+	funcGetAll          func(ctx context.Context) (oa1 []model.Order, err error)
+	inspectFuncGetAll   func(ctx context.Context)
+	afterGetAllCounter  uint64
+	beforeGetAllCounter uint64
+	GetAllMock          mOrderRepositoryMockGetAll
+
 	funcGetById          func(ctx context.Context, o1 model.OrderID) (o2 model.Order, err error)
 	inspectFuncGetById   func(ctx context.Context, o1 model.OrderID)
 	afterGetByIdCounter  uint64
@@ -48,6 +54,9 @@ func NewOrderRepositoryMock(t minimock.Tester) *OrderRepositoryMock {
 
 	m.CreateMock = mOrderRepositoryMockCreate{mock: m}
 	m.CreateMock.callArgs = []*OrderRepositoryMockCreateParams{}
+
+	m.GetAllMock = mOrderRepositoryMockGetAll{mock: m}
+	m.GetAllMock.callArgs = []*OrderRepositoryMockGetAllParams{}
 
 	m.GetByIdMock = mOrderRepositoryMockGetById{mock: m}
 	m.GetByIdMock.callArgs = []*OrderRepositoryMockGetByIdParams{}
@@ -378,6 +387,299 @@ func (m *OrderRepositoryMock) MinimockCreateInspect() {
 	if !m.CreateMock.invocationsDone() && afterCreateCounter > 0 {
 		m.t.Errorf("Expected %d calls to OrderRepositoryMock.Create but found %d calls",
 			mm_atomic.LoadUint64(&m.CreateMock.expectedInvocations), afterCreateCounter)
+	}
+}
+
+type mOrderRepositoryMockGetAll struct {
+	optional           bool
+	mock               *OrderRepositoryMock
+	defaultExpectation *OrderRepositoryMockGetAllExpectation
+	expectations       []*OrderRepositoryMockGetAllExpectation
+
+	callArgs []*OrderRepositoryMockGetAllParams
+	mutex    sync.RWMutex
+
+	expectedInvocations uint64
+}
+
+// OrderRepositoryMockGetAllExpectation specifies expectation struct of the orderRepository.GetAll
+type OrderRepositoryMockGetAllExpectation struct {
+	mock      *OrderRepositoryMock
+	params    *OrderRepositoryMockGetAllParams
+	paramPtrs *OrderRepositoryMockGetAllParamPtrs
+	results   *OrderRepositoryMockGetAllResults
+	Counter   uint64
+}
+
+// OrderRepositoryMockGetAllParams contains parameters of the orderRepository.GetAll
+type OrderRepositoryMockGetAllParams struct {
+	ctx context.Context
+}
+
+// OrderRepositoryMockGetAllParamPtrs contains pointers to parameters of the orderRepository.GetAll
+type OrderRepositoryMockGetAllParamPtrs struct {
+	ctx *context.Context
+}
+
+// OrderRepositoryMockGetAllResults contains results of the orderRepository.GetAll
+type OrderRepositoryMockGetAllResults struct {
+	oa1 []model.Order
+	err error
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmGetAll *mOrderRepositoryMockGetAll) Optional() *mOrderRepositoryMockGetAll {
+	mmGetAll.optional = true
+	return mmGetAll
+}
+
+// Expect sets up expected params for orderRepository.GetAll
+func (mmGetAll *mOrderRepositoryMockGetAll) Expect(ctx context.Context) *mOrderRepositoryMockGetAll {
+	if mmGetAll.mock.funcGetAll != nil {
+		mmGetAll.mock.t.Fatalf("OrderRepositoryMock.GetAll mock is already set by Set")
+	}
+
+	if mmGetAll.defaultExpectation == nil {
+		mmGetAll.defaultExpectation = &OrderRepositoryMockGetAllExpectation{}
+	}
+
+	if mmGetAll.defaultExpectation.paramPtrs != nil {
+		mmGetAll.mock.t.Fatalf("OrderRepositoryMock.GetAll mock is already set by ExpectParams functions")
+	}
+
+	mmGetAll.defaultExpectation.params = &OrderRepositoryMockGetAllParams{ctx}
+	for _, e := range mmGetAll.expectations {
+		if minimock.Equal(e.params, mmGetAll.defaultExpectation.params) {
+			mmGetAll.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmGetAll.defaultExpectation.params)
+		}
+	}
+
+	return mmGetAll
+}
+
+// ExpectCtxParam1 sets up expected param ctx for orderRepository.GetAll
+func (mmGetAll *mOrderRepositoryMockGetAll) ExpectCtxParam1(ctx context.Context) *mOrderRepositoryMockGetAll {
+	if mmGetAll.mock.funcGetAll != nil {
+		mmGetAll.mock.t.Fatalf("OrderRepositoryMock.GetAll mock is already set by Set")
+	}
+
+	if mmGetAll.defaultExpectation == nil {
+		mmGetAll.defaultExpectation = &OrderRepositoryMockGetAllExpectation{}
+	}
+
+	if mmGetAll.defaultExpectation.params != nil {
+		mmGetAll.mock.t.Fatalf("OrderRepositoryMock.GetAll mock is already set by Expect")
+	}
+
+	if mmGetAll.defaultExpectation.paramPtrs == nil {
+		mmGetAll.defaultExpectation.paramPtrs = &OrderRepositoryMockGetAllParamPtrs{}
+	}
+	mmGetAll.defaultExpectation.paramPtrs.ctx = &ctx
+
+	return mmGetAll
+}
+
+// Inspect accepts an inspector function that has same arguments as the orderRepository.GetAll
+func (mmGetAll *mOrderRepositoryMockGetAll) Inspect(f func(ctx context.Context)) *mOrderRepositoryMockGetAll {
+	if mmGetAll.mock.inspectFuncGetAll != nil {
+		mmGetAll.mock.t.Fatalf("Inspect function is already set for OrderRepositoryMock.GetAll")
+	}
+
+	mmGetAll.mock.inspectFuncGetAll = f
+
+	return mmGetAll
+}
+
+// Return sets up results that will be returned by orderRepository.GetAll
+func (mmGetAll *mOrderRepositoryMockGetAll) Return(oa1 []model.Order, err error) *OrderRepositoryMock {
+	if mmGetAll.mock.funcGetAll != nil {
+		mmGetAll.mock.t.Fatalf("OrderRepositoryMock.GetAll mock is already set by Set")
+	}
+
+	if mmGetAll.defaultExpectation == nil {
+		mmGetAll.defaultExpectation = &OrderRepositoryMockGetAllExpectation{mock: mmGetAll.mock}
+	}
+	mmGetAll.defaultExpectation.results = &OrderRepositoryMockGetAllResults{oa1, err}
+	return mmGetAll.mock
+}
+
+// Set uses given function f to mock the orderRepository.GetAll method
+func (mmGetAll *mOrderRepositoryMockGetAll) Set(f func(ctx context.Context) (oa1 []model.Order, err error)) *OrderRepositoryMock {
+	if mmGetAll.defaultExpectation != nil {
+		mmGetAll.mock.t.Fatalf("Default expectation is already set for the orderRepository.GetAll method")
+	}
+
+	if len(mmGetAll.expectations) > 0 {
+		mmGetAll.mock.t.Fatalf("Some expectations are already set for the orderRepository.GetAll method")
+	}
+
+	mmGetAll.mock.funcGetAll = f
+	return mmGetAll.mock
+}
+
+// When sets expectation for the orderRepository.GetAll which will trigger the result defined by the following
+// Then helper
+func (mmGetAll *mOrderRepositoryMockGetAll) When(ctx context.Context) *OrderRepositoryMockGetAllExpectation {
+	if mmGetAll.mock.funcGetAll != nil {
+		mmGetAll.mock.t.Fatalf("OrderRepositoryMock.GetAll mock is already set by Set")
+	}
+
+	expectation := &OrderRepositoryMockGetAllExpectation{
+		mock:   mmGetAll.mock,
+		params: &OrderRepositoryMockGetAllParams{ctx},
+	}
+	mmGetAll.expectations = append(mmGetAll.expectations, expectation)
+	return expectation
+}
+
+// Then sets up orderRepository.GetAll return parameters for the expectation previously defined by the When method
+func (e *OrderRepositoryMockGetAllExpectation) Then(oa1 []model.Order, err error) *OrderRepositoryMock {
+	e.results = &OrderRepositoryMockGetAllResults{oa1, err}
+	return e.mock
+}
+
+// Times sets number of times orderRepository.GetAll should be invoked
+func (mmGetAll *mOrderRepositoryMockGetAll) Times(n uint64) *mOrderRepositoryMockGetAll {
+	if n == 0 {
+		mmGetAll.mock.t.Fatalf("Times of OrderRepositoryMock.GetAll mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmGetAll.expectedInvocations, n)
+	return mmGetAll
+}
+
+func (mmGetAll *mOrderRepositoryMockGetAll) invocationsDone() bool {
+	if len(mmGetAll.expectations) == 0 && mmGetAll.defaultExpectation == nil && mmGetAll.mock.funcGetAll == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmGetAll.mock.afterGetAllCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmGetAll.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// GetAll implements service.orderRepository
+func (mmGetAll *OrderRepositoryMock) GetAll(ctx context.Context) (oa1 []model.Order, err error) {
+	mm_atomic.AddUint64(&mmGetAll.beforeGetAllCounter, 1)
+	defer mm_atomic.AddUint64(&mmGetAll.afterGetAllCounter, 1)
+
+	if mmGetAll.inspectFuncGetAll != nil {
+		mmGetAll.inspectFuncGetAll(ctx)
+	}
+
+	mm_params := OrderRepositoryMockGetAllParams{ctx}
+
+	// Record call args
+	mmGetAll.GetAllMock.mutex.Lock()
+	mmGetAll.GetAllMock.callArgs = append(mmGetAll.GetAllMock.callArgs, &mm_params)
+	mmGetAll.GetAllMock.mutex.Unlock()
+
+	for _, e := range mmGetAll.GetAllMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.oa1, e.results.err
+		}
+	}
+
+	if mmGetAll.GetAllMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmGetAll.GetAllMock.defaultExpectation.Counter, 1)
+		mm_want := mmGetAll.GetAllMock.defaultExpectation.params
+		mm_want_ptrs := mmGetAll.GetAllMock.defaultExpectation.paramPtrs
+
+		mm_got := OrderRepositoryMockGetAllParams{ctx}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmGetAll.t.Errorf("OrderRepositoryMock.GetAll got unexpected parameter ctx, want: %#v, got: %#v%s\n", *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmGetAll.t.Errorf("OrderRepositoryMock.GetAll got unexpected parameters, want: %#v, got: %#v%s\n", *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmGetAll.GetAllMock.defaultExpectation.results
+		if mm_results == nil {
+			mmGetAll.t.Fatal("No results are set for the OrderRepositoryMock.GetAll")
+		}
+		return (*mm_results).oa1, (*mm_results).err
+	}
+	if mmGetAll.funcGetAll != nil {
+		return mmGetAll.funcGetAll(ctx)
+	}
+	mmGetAll.t.Fatalf("Unexpected call to OrderRepositoryMock.GetAll. %v", ctx)
+	return
+}
+
+// GetAllAfterCounter returns a count of finished OrderRepositoryMock.GetAll invocations
+func (mmGetAll *OrderRepositoryMock) GetAllAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmGetAll.afterGetAllCounter)
+}
+
+// GetAllBeforeCounter returns a count of OrderRepositoryMock.GetAll invocations
+func (mmGetAll *OrderRepositoryMock) GetAllBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmGetAll.beforeGetAllCounter)
+}
+
+// Calls returns a list of arguments used in each call to OrderRepositoryMock.GetAll.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmGetAll *mOrderRepositoryMockGetAll) Calls() []*OrderRepositoryMockGetAllParams {
+	mmGetAll.mutex.RLock()
+
+	argCopy := make([]*OrderRepositoryMockGetAllParams, len(mmGetAll.callArgs))
+	copy(argCopy, mmGetAll.callArgs)
+
+	mmGetAll.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockGetAllDone returns true if the count of the GetAll invocations corresponds
+// the number of defined expectations
+func (m *OrderRepositoryMock) MinimockGetAllDone() bool {
+	if m.GetAllMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.GetAllMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.GetAllMock.invocationsDone()
+}
+
+// MinimockGetAllInspect logs each unmet expectation
+func (m *OrderRepositoryMock) MinimockGetAllInspect() {
+	for _, e := range m.GetAllMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to OrderRepositoryMock.GetAll with params: %#v", *e.params)
+		}
+	}
+
+	afterGetAllCounter := mm_atomic.LoadUint64(&m.afterGetAllCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.GetAllMock.defaultExpectation != nil && afterGetAllCounter < 1 {
+		if m.GetAllMock.defaultExpectation.params == nil {
+			m.t.Error("Expected call to OrderRepositoryMock.GetAll")
+		} else {
+			m.t.Errorf("Expected call to OrderRepositoryMock.GetAll with params: %#v", *m.GetAllMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcGetAll != nil && afterGetAllCounter < 1 {
+		m.t.Error("Expected call to OrderRepositoryMock.GetAll")
+	}
+
+	if !m.GetAllMock.invocationsDone() && afterGetAllCounter > 0 {
+		m.t.Errorf("Expected %d calls to OrderRepositoryMock.GetAll but found %d calls",
+			mm_atomic.LoadUint64(&m.GetAllMock.expectedInvocations), afterGetAllCounter)
 	}
 }
 
@@ -1056,6 +1358,8 @@ func (m *OrderRepositoryMock) MinimockFinish() {
 		if !m.minimockDone() {
 			m.MinimockCreateInspect()
 
+			m.MinimockGetAllInspect()
+
 			m.MinimockGetByIdInspect()
 
 			m.MinimockSetStatusInspect()
@@ -1083,6 +1387,7 @@ func (m *OrderRepositoryMock) minimockDone() bool {
 	done := true
 	return done &&
 		m.MinimockCreateDone() &&
+		m.MinimockGetAllDone() &&
 		m.MinimockGetByIdDone() &&
 		m.MinimockSetStatusDone()
 }

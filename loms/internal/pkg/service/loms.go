@@ -18,6 +18,7 @@ type orderRepository interface {
 	Create(context.Context, model.Order) (model.OrderID, error)
 	GetById(context.Context, model.OrderID) (model.Order, error)
 	SetStatus(context.Context, model.OrderID, model.OrderStatus) error
+	GetAll(context.Context) ([]model.Order, error)
 }
 
 type LomsService struct {
@@ -111,4 +112,11 @@ func (s *LomsService) StocksInfo(ctx context.Context, sku model.ProductSku) (_ u
 	defer tracing.EndWithCheckError(span, &err)
 
 	return s.stockRepository.GetStocksBySku(ctx, sku)
+}
+
+func (s *LomsService) GetAllOrders(ctx context.Context) (_ []model.Order, err error) {
+	ctx, span := tracing.Start(ctx, "GetAllOrders")
+	defer tracing.EndWithCheckError(span, &err)
+
+	return s.orderRepository.GetAll(ctx)
 }

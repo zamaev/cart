@@ -9,13 +9,14 @@ import (
 )
 
 type Config struct {
-	ServiceName  string
-	GrpcUrl      string
-	HttpUrl      string
-	DbMasterUrl  string
-	DbReplicaUrl string
-	TracerUrl    string
-	Kafka        kafka.Config
+	ServiceName       string
+	GrpcUrl           string
+	HttpUrl           string
+	DbMasterUrl       string
+	DbReplicaUrl      string
+	DbMasterShard2Url string
+	TracerUrl         string
+	Kafka             kafka.Config
 }
 
 func NewConfig() (Config, error) {
@@ -41,6 +42,11 @@ func NewConfig() (Config, error) {
 	if dbReplicaUrl == "" {
 		dbReplicaUrl = "postgres://user:password@localhost:5433/postgres"
 	}
+	dbMasterShard2Url := os.Getenv("DATABASE_MASTER-SHARD-2_URL")
+	if dbMasterShard2Url == "" {
+		dbMasterShard2Url = "postgres://user:password@localhost:5434/postgres"
+	}
+
 	tracerUrl := os.Getenv("TRACER_URL")
 	if tracerUrl == "" {
 		tracerUrl = "http://localhost:4318"
@@ -68,12 +74,13 @@ func NewConfig() (Config, error) {
 	}
 
 	return Config{
-		ServiceName:  serviceName,
-		GrpcUrl:      grpcUrl,
-		HttpUrl:      httpUrl,
-		DbMasterUrl:  dbMasterUrl,
-		DbReplicaUrl: dbReplicaUrl,
-		TracerUrl:    tracerUrl,
+		ServiceName:       serviceName,
+		GrpcUrl:           grpcUrl,
+		HttpUrl:           httpUrl,
+		DbMasterUrl:       dbMasterUrl,
+		DbReplicaUrl:      dbReplicaUrl,
+		DbMasterShard2Url: dbMasterShard2Url,
+		TracerUrl:         tracerUrl,
 		Kafka: kafka.Config{
 			Brokers:              kafkaBrokers,
 			OrderEventsTopic:     kafkaOrderEventsTopic,

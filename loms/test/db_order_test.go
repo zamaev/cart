@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"route256/loms/internal/pkg/config"
-	"route256/loms/internal/pkg/middleware"
+	"route256/loms/internal/pkg/inrfa/shard_manager"
 	"route256/loms/internal/pkg/model"
 	"route256/loms/test/testconfig"
 	"testing"
@@ -33,21 +33,26 @@ func TestOrderSute(t *testing.T) {
 }
 
 func (s *OrderSute) SetupSuite() {
+	ctx := context.Background()
+
 	config, err := config.NewConfig()
 	require.NoError(s.T(), err)
 	testconfig := testconfig.NewConfig()
 
-	dbMasterPool, err := pgxpool.New(context.Background(), config.DbMasterUrl)
+	dbMasterPool, err := pgxpool.New(ctx, config.DbMasterUrl)
 	require.NoError(s.T(), err)
-	err = dbMasterPool.Ping(context.Background())
-	require.NoError(s.T(), err)
-
-	dbReplicaPool, err := pgxpool.New(context.Background(), config.DbReplicaUrl)
-	require.NoError(s.T(), err)
-	err = dbReplicaPool.Ping(context.Background())
+	err = dbMasterPool.Ping(ctx)
 	require.NoError(s.T(), err)
 
-	dbBalancer := middleware.NewDbBalancer(dbMasterPool, dbReplicaPool)
+	dbMasterShard2Pool, err := pgxpool.New(ctx, config.DbMasterShard2Url)
+	require.NoError(s.T(), err)
+	err = dbMasterShard2Pool.Ping(ctx)
+	require.NoError(s.T(), err)
+	shardManager := shard_manager.NewShardManager(
+		shard_manager.GetMurmur3ShardFn(2),
+		dbMasterPool,
+		dbMasterShard2Pool,
+	)
 
 	db := stdlib.OpenDBFromPool(dbMasterPool)
 	s.db = db
@@ -70,7 +75,7 @@ func (s *OrderSute) SetupSuite() {
 	// Waiting for data to reach replication
 	time.Sleep(1 * time.Second)
 
-	orderRepository := orderrepository.NewDbOrderRepository(dbBalancer)
+	orderRepository := orderrepository.NewDbOrderRepository(shardManager)
 
 	s.orderRepository = orderRepository
 }

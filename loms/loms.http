@@ -12,7 +12,7 @@ Content-Type: application/json
 }
 ###
 
-GET http://localhost:8097/v1/order_info/1
+GET http://localhost:8097/v1/order_info/1001
 Content-Type: application/json
 ###
 
@@ -28,9 +28,13 @@ POST http://localhost:8097/v1/order_cancel
 Content-Type: application/json
 
 {
-  "order_id": 4
+  "order_id": 1001
 }
 ###
 
 GET http://localhost:8097/v1/stocks_info/1
+Content-Type: application/json
+###
+
+GET http://localhost:8097/v1/get_all_orders
 Content-Type: application/json

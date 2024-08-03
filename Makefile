@@ -12,7 +12,7 @@ up-db:
 	sudo docker compose up -d db_master db_replica
 
 up-infra:
-	sudo docker compose up -d db_master db_replica prometheus grafana jaeger kafka-ui kafka0 kafka-init-topics
+	sudo docker compose up -d db_master db_master-shard-2 db_replica prometheus grafana jaeger kafka-ui kafka0 kafka-init-topics redis
 
 re: down rm up
 

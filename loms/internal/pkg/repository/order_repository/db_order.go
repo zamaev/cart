@@ -3,31 +3,31 @@ package orderrepository
 import (
 	"context"
 	"fmt"
+	"route256/loms/internal/pkg/inrfa/shard_manager"
 	"route256/loms/internal/pkg/model"
 	"route256/loms/internal/pkg/repository"
 	"route256/loms/internal/pkg/repository/order_repository/sqlc_order"
 	"route256/loms/pkg/tracing"
+	"sort"
+	"strconv"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type DB interface {
-	Exec(context.Context, string, ...interface{}) (pgconn.CommandTag, error)
-	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
-	QueryRow(context.Context, string, ...interface{}) pgx.Row
-	Begin(ctx context.Context) (pgx.Tx, error)
+type shardManager interface {
+	GetShardIndex(key shard_manager.ShardKey) shard_manager.ShardIndex
+	GetShardIndexFromID(id int64) shard_manager.ShardIndex
+	Pick(key shard_manager.ShardIndex) (*pgxpool.Pool, error)
+	GetShards() []*pgxpool.Pool
 }
 
 type DbOrderRepository struct {
-	db      DB
-	queries *sqlc_order.Queries
+	sm shardManager
 }
 
-func NewDbOrderRepository(db DB) *DbOrderRepository {
+func NewDbOrderRepository(sm shardManager) *DbOrderRepository {
 	return &DbOrderRepository{
-		db:      db,
-		queries: sqlc_order.New(db),
+		sm: sm,
 	}
 }
 
@@ -35,21 +35,29 @@ func (r *DbOrderRepository) Create(ctx context.Context, order model.Order, inTx 
 	ctx, span := tracing.Start(ctx, "DbOrderRepository.Create")
 	defer tracing.EndWithCheckError(span, &err)
 
-	tx, err := r.db.Begin(ctx)
+	shIndex := r.sm.GetShardIndex(shard_manager.ShardKey(strconv.FormatInt(int64(order.User), 10)))
+	db, err := r.sm.Pick(shIndex)
+	if err != nil {
+		return 0, fmt.Errorf("r.sm.Pick: %w", err)
+	}
+	queries := sqlc_order.New(db)
+
+	tx, err := db.Begin(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("r.db.Begin: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
-	qtx := r.queries.WithTx(tx)
+	qtx := queries.WithTx(tx)
 
 	if order.Status == model.OrderStatusNone {
 		order.Status = model.OrderStatusNew
 	}
 
 	id, err := qtx.Create(ctx, sqlc_order.CreateParams{
-		UserID: int64(order.User),
-		Status: string(order.Status),
+		UserID:  int64(order.User),
+		Status:  string(order.Status),
+		ShardID: int32(shIndex),
 	})
 	if err != nil {
 		return 0, fmt.Errorf("qtx.Create: %w", err)
@@ -83,7 +91,14 @@ func (r *DbOrderRepository) GetById(ctx context.Context, orderID model.OrderID) 
 	ctx, span := tracing.Start(ctx, "DbOrderRepository.GetById")
 	defer tracing.EndWithCheckError(span, &err)
 
-	orderItems, err := r.queries.GetById(ctx, int64(orderID))
+	shIndex := r.sm.GetShardIndexFromID(int64(orderID))
+	db, err := r.sm.Pick(shIndex)
+	if err != nil {
+		return model.Order{}, fmt.Errorf("r.sm.Pick: %w", err)
+	}
+	queries := sqlc_order.New(db)
+
+	orderItems, err := queries.GetById(ctx, int64(orderID))
 	if err != nil {
 		return model.Order{}, fmt.Errorf("r.queries.GetById: %w", err)
 	}
@@ -91,6 +106,7 @@ func (r *DbOrderRepository) GetById(ctx context.Context, orderID model.OrderID) 
 		return model.Order{}, fmt.Errorf("invalid order id: %d", orderID)
 	}
 	order := model.Order{
+		ID:     model.OrderID(orderItems[0].Order.ID),
 		Status: model.OrderStatus(orderItems[0].Order.Status),
 		User:   model.UserID(orderItems[0].Order.UserID),
 		Items:  make([]model.OrderItem, 0, len(orderItems)),
@@ -108,9 +124,16 @@ func (r *DbOrderRepository) SetStatus(ctx context.Context, orderID model.OrderID
 	ctx, span := tracing.Start(ctx, "DbOrderRepository.SetStatus")
 	defer tracing.EndWithCheckError(span, &err)
 
-	qtx := r.queries
+	shIndex := r.sm.GetShardIndexFromID(int64(orderID))
+	db, err := r.sm.Pick(shIndex)
+	if err != nil {
+		return fmt.Errorf("r.sm.Pick: %w", err)
+	}
+	queries := sqlc_order.New(db)
+
+	qtx := queries
 	if len(inTx) > 0 {
-		tx, err := r.db.Begin(ctx)
+		tx, err := db.Begin(ctx)
 		if err != nil {
 			return fmt.Errorf("r.db.Begin: %w", err)
 		}
@@ -139,4 +162,51 @@ func (r *DbOrderRepository) SetStatus(ctx context.Context, orderID model.OrderID
 		return fmt.Errorf("qtx.SetStatus: %w", err)
 	}
 	return nil
+}
+
+func (r *DbOrderRepository) GetAll(ctx context.Context) (_ []model.Order, err error) {
+	ctx, span := tracing.Start(ctx, "DbOrderRepository.GetAll")
+	defer tracing.EndWithCheckError(span, &err)
+
+	orders := make([]model.Order, 0, 10)
+
+	for _, db := range r.sm.GetShards() {
+		queries := sqlc_order.New(db)
+		orderItems, err := queries.GetAll(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("r.queries.GetAll: %w", err)
+		}
+		if len(orderItems) == 0 {
+			continue
+		}
+
+		var order model.Order
+		for _, item := range orderItems {
+			// Начался новый заказ
+			if item.Order.ID != int64(order.ID) {
+				// Старый сохраняем
+				if order.ID != 0 {
+					orders = append(orders, order)
+				}
+				order = model.Order{
+					ID:     model.OrderID(item.Order.ID),
+					Status: model.OrderStatus(item.Order.Status),
+					User:   model.UserID(item.Order.UserID),
+					Items:  make([]model.OrderItem, 0, 3),
+				}
+			}
+			order.Items = append(order.Items, model.OrderItem{
+				Sku:   model.ProductSku(item.OrderItem.Sku),
+				Count: uint16(item.OrderItem.Count),
+			})
+
+		}
+		orders = append(orders, order)
+	}
+
+	sort.Slice(orders, func(i, j int) bool {
+		return orders[i].ID > orders[j].ID
+	})
+
+	return orders, nil
 }
